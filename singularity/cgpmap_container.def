@@ -1,0 +1,95 @@
+
+#####################
+#### DESCRIPTION ####
+#####################
+
+
+# Singularity Image containing the following software for Pipeline #1
+# Ryan Cardenas - University of East Anglia
+# Email - aft19qdu@uea.ac.uk
+
+# This def file installs the following:
+
+#	- Picard
+#	- bcftools
+#	- samtools
+#	- fqtools
+#	- Somalier
+#	- Trim-galore
+#	- MultiQC
+#	- FastQC
+#	- VerifyBAMID(1)
+# - Somalier
+
+#####################
+#### START BUILD ####
+#####################
+
+bootstrap: docker
+from: ubuntu:16.04
+
+%environment
+    PATH="$PATH:/usr/local/anaconda/bin/"
+%post
+
+
+    # install debian packages
+    apt-get update
+    apt-get install -y eatmydata wget curl sudo nano
+    eatmydata apt-get install -y bzip2
+    apt-get clean
+
+    # install anaconda
+    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ./anaconda.sh && \
+    bash ./anaconda.sh -b -p /usr/local/anaconda ; rm ./anaconda.sh
+
+    # set anaconda path
+    echo $PATH
+    export PATH="$PATH:/usr/local/anaconda/bin/"
+    echo $PATH
+    echo ' '
+    which conda
+    echo ' '
+    echo $PATH
+    echo ' '
+    conda config --add channels bioconda
+    conda config --add channels r
+    conda config --add channels conda-forge
+
+
+    # PICARD and dependencies
+    conda install picard
+    conda update picard
+    conda config --add channels conda-forge
+    conda install openjdk
+    conda search openjdk --channel conda-forge
+    conda config --add channels conda-forge
+
+    # FQTOOLS
+    conda install -c bioconda fqtools
+
+    # VERIFYBAMID 1
+    conda install -c bioconda verifybamid
+
+    # SAMTOOLS
+    conda install -c bioconda samtools
+
+    # BCFTOOLS
+    conda install bcftools
+    conda update bcftools
+
+    # MULTIQC
+    conda install -c bioconda multiqc
+    pip install --upgrade multiqc
+
+    # Trim-galore
+    conda install -c bioconda trim-galore
+
+    # Somalier
+    mkdir somalier:v0.2.11
+    cd somalier:v0.2.11
+    wget https://github.com/brentp/somalier/releases/download/v0.2.11/somalier
+    cd ..
+
+    #House Keeping
+    conda clean --tarballs

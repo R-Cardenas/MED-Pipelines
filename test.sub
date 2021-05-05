@@ -1,0 +1,16 @@
+#!/bin/bash
+#SBATCH -p compute-16-64
+#SBATCH --output=test_%j.log
+#SBATCH -e test-%j.out
+#SBATCH -e test-%j.err
+
+module add nextflow
+module add singularity
+
+nextflow run nf-core/rnaseq -r 3.0 -profile singularity \
+--genome GRCh37 \
+--outdir 'output_3.0' \
+--saveAlignedIntermediates \
+-c $baseDir/RNAseq/expression/UEA2.config \
+--input input.csv \
+--saveTrimmed

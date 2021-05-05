@@ -1,0 +1,110 @@
+
+#    _    _   ______                 _____                                      _
+#   | |  | | |  ____|     /\        / ____|                                    (_)
+#   | |  | | | |__       /  \      | |  __    ___   _ __     ___    _ __ ___    _    ___   ___
+#   | |  | | |  __|     / /\ \     | | |_ |  / _ \ | '_ \   / _ \  | '_ ` _ \  | |  / __| / __|
+#   | |__| | | |____   / ____ \    | |__| | |  __/ | | | | | (_) | | | | | | | | | | (__  \__ \
+#    \____/  |______| /_/    \_\    \_____|  \___| |_| |_|  \___/  |_| |_| |_| |_|  \___| |___/
+
+
+# Master user config file v0.1
+# Creator: Ryan Cardenas
+# Email: aft19qdu@uea.ac.uk
+
+# Purpose: This config file chooses which pipelines are to be run and other details, such as which genome to use. It is important that the information given is accurate to ensure pipeline run correctly. Please read DOCUMENTATION before editing this file.
+
+# INFO: If multiple inputs required seperate by a single space e.g. 'freebayes gatk-haplotypecaller'
+
+#######################
+## USER INPUT - MAIN ##
+#######################
+
+#1 Enter the project name. (e.g. Project1)
+
+projectname: 'Tumoroid'
+
+#2 Where are the FASTQ files stored? (e.g. /gpfs/data/CG_pipelines/example/input/*{1,2}.fq.gz)
+# This can be left empty if files are in input directory
+
+fastq_dir: ''
+
+#2 What is the outdir for results? (e.g. /gpfs/data/CG_pipelines/example/output)
+
+output_dir: ''
+
+# Are you running from BAMs only? (i.e. not using fastq files put YES if using BAMS, NO for fastq)
+
+bams_only: ''
+
+#2 What samples are these? (i.e. dna-exome-germline, dna-wgs-germline, dna-exome-somatic, dna-wgs-somatic, rna-seq)
+
+samples: 'dna-exome'
+
+#3 If DNA variant analysis is to be conducted are they germline / somatic? (leave empty for RNA-seq)
+
+variant: 'germline'
+
+#4 What genome assembly to map to? (i.e. hg19 / hg38)
+
+genome_assembly: 'hg38'
+
+#5 Are the samples mapped on multiple lanes? (i.e. yes / no)
+
+merged_lanes: 'no'
+
+#6 Which pipelines would you like to include? (e.g. freebayes)
+
+pipelines: 'freebayes'
+
+#7 Is this run on UEA HPC? (i.e. yes / no)
+
+# if no this will download all required genomes and singularity images to downloads (requires lots of space ~100 GB).
+
+hpc: 'no'
+
+
+##########################
+### Germline only ########
+##########################
+
+#8 Allele frequency group?? ## !! NEEDS ADDING !!! See (https://www.ensembl.org/info/docs/tools/vep/script/vep_options.html#opt_af_gnomad)
+
+af_gnomad: 'Tumoroid'
+
+#9 Allele frequency proportion?? ## !! NEEDS ADDING !!! (0.1 equal to occurence of 10% in population)
+
+af: '0.1'
+
+
+##########################
+### Somatic only ########
+##########################
+
+#1 Allele frequency proportion?? ## !! NEEDS ADDING !!!
+
+#10 Do TUMOUR/NORMAL matched samples have identical sample names? (e.g. S101-TUMOUR-UID.fq.gz & S101-NORMAL-UID.fq.gz)
+# If the answer below is 'yes' then leave #11 blank.
+
+matched_identical: 'no'
+
+
+#11 Enter the normal and tumor samples.
+# ensure that the order for tumor and normal are the same.
+
+Tumour_samples: 'A_1, A_2'
+Normal_samples: 'A_1, A_2'
+
+
+##########################
+### Exome only ########
+##########################
+# These need to be in the pipeline_clean folder.
+# Give a relative path from pipelines_clean folder (e.g. /bed/bait.bed)
+
+# What is filename for the bait bed file?
+
+bait_file: 'agilent_v0.1_hg38_bait.bed'
+
+# What is filename for the target bed file?
+
+target_file: 'agilent_v0.1_hg38_target.bed'
