@@ -2,18 +2,10 @@
  * create a channel for fastq pairss
  */
 
-params.fq = "/gpfs/afm/cg_pipelines/Pipelines/Cholesteatoma/chole_batch2_rerun_140121/**/*{1,2}.fq.gz"
-
-read1_ch = Channel .fromFilePairs( params.fq )
+read1_ch = Channel .fromFilePairs( params_fq )
 read1_ch.into { read2_ch; read3_ch }
 
-params.csv = "$baseDir/bin/williams_batch2_info.csv"
-csv_ch = Channel .fromPath( params.csv )
-
-println """\
-	\
-	\
-	\
+println """
          ==================================
          E X O M E - N F   P I P E L I N E
          N O  M E R G E
@@ -28,12 +20,8 @@ println """\
          .stripIndent()
 
 
-myLongCmdline = "git clone https://github.com/R-Cardenas/nextflow_pipelines.git"
-result = myLongCmdline.execute().text
-
-
 process trim_galore{
-	afterScript 'rm -fr ${reads[0]} ${reads[1]}'
+	afterScript "rm -fr ${reads[0]} ${reads[1]}"
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 2
 	stageInMode = 'copy' // trim_galore doesnt like sym/hardlinks.
@@ -115,7 +103,7 @@ process fqtools{
 process cgpMAP {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 4
-	cpus 10
+	cpus 3
 	executor 'slurm'
 	memory '45 GB'
 	storeDir "$baseDir/output/cgpMAP/${read1.simpleName}"
@@ -127,10 +115,8 @@ process cgpMAP {
   file "*.bam" into cgp_ch
   script:
   """
-	# delete and remake path in case or retry.
-	# as will cause to fail.
 
-	rm -fr $baseDir/output/cgpMAP/${read1.simpleName}
+	rm -fr $baseDir/output/cgpMAP/${read1.simpleName} # delete and remake path in case of retry pipeline
 	mkdir $baseDir/output/cgpMAP/${read1.simpleName}
 
   name=\$(echo '${read2}' | sed -e 's/.*[/]//' -e 's/-.*//')
@@ -140,7 +126,7 @@ process cgpMAP {
   -r $cgpmap_genome \
   -i $cgpmap_index \
   -s \$name \
-  -t 10 \
+  -t 3 \
 	-g ${read1}.yaml \
   ${read1} ${read2}
 
