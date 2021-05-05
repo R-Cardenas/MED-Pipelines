@@ -25,7 +25,7 @@ process trim_galore{
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 2
 	stageInMode = 'copy' // trim_galore doesnt like sym/hardlinks.
-  storeDir "$baseDir/output/cgpMAP/trim_galore"
+  storeDir "$baseDir/output/trim_galore"
 	input:
 	tuple val(read2), file(reads) from read2_ch
 	output:
@@ -55,7 +55,7 @@ process trim_galore{
 process fqtools{
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 2
-  storeDir "$baseDir/output/cgpMAP/trim_galore"
+  storeDir "$baseDir/output/trim_galore/fqtools"
 	input:
 	file read1 from read7_ch
 	file read2 from read12_ch
@@ -175,7 +175,7 @@ process bam_merge {
 process picard_pcr_removal {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 2
-	storeDir "$baseDir/output/BAM/merged_lanes"
+	storeDir "$baseDir/output/BAM/merge/RMD"
   input:
   file bam from dup_ch.flatten()
   output:
@@ -193,7 +193,7 @@ process picard_pcr_removal {
 process bam_index {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 2
-	storeDir "$baseDir/output/BAM/merged_lanes"
+	storeDir "$baseDir/output/BAM/merge/RMD"
   input:
   file bam from index1_ch
   output:
