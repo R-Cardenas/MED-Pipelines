@@ -23,7 +23,7 @@ println """
 process trim_galore{
 	afterScript "rm -fr ${reads[0]} ${reads[1]}"
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	maxRetries 2
+	maxRetries 7
 	stageInMode = 'copy' // trim_galore doesnt like sym/hardlinks.
   storeDir "$baseDir/output/trim_galore"
 	input:
@@ -54,7 +54,7 @@ process trim_galore{
 
 process fqtools{
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	maxRetries 2
+	maxRetries 7
   storeDir "$baseDir/output/trim_galore/fqtools"
 	input:
 	file read1 from read7_ch
@@ -102,38 +102,39 @@ process fqtools{
 
 process cgpMAP {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	maxRetries 4
-	cpus 3
-	executor 'slurm'
-	memory '45 GB'
+	maxRetries 7
+  executor 'slurm'
+	clusterOptions '--qos=hmem'
+	queue 'hmem-512'
+	memory '70 GB'
 	storeDir "$baseDir/output/cgpMAP/${read1.simpleName}"
   input:
 	val read1 from read5_ch
 	val read2 from read10_ch
-	val yaml from yaml_ch.collect()
+	file yaml from yaml_ch.collect()
   output:
   file "*.bam" into cgp_ch
   script:
   """
 
 	rm -fr $baseDir/output/cgpMAP/${read1.simpleName} # delete and remake path in case of retry pipeline
-	mkdir $baseDir/output/cgpMAP/${read1.simpleName}
+	mkdir -p $baseDir/output/cgpMAP/${read1.simpleName}
 
   name=\$(echo '${read2}' | sed -e 's/.*[/]//' -e 's/-.*//')
+  BaseName=\$(basename ${read1})
 
   ds-cgpmap.pl  \
   -outdir $baseDir/output/cgpMAP/${read1.simpleName} \
   -r $cgpmap_genome \
   -i $cgpmap_index \
   -s \$name \
-  -t 3 \
-	-g ${read1}.yaml \
+	-g \$BaseName.yaml \
   ${read1} ${read2}
 
 	mv $baseDir/output/cgpMAP/${read1.simpleName}/*.bam \
 	$baseDir/output/cgpMAP/${read1.simpleName}/${read1.simpleName}.bam
 
-	echo 'fq1: ${read1} fq2: ${read2} bam_name: ${read1.simpleName}' >> $baseDir/${projectname}_cgpmap_samples.log
+	echo 'fq1: ${read1} fq2: ${read2} bam_name: ${read1.simpleName}' >> $baseDir/logs/${projectname}_cgpmap_samples.log
 	ls -l  ${read1} >> $baseDir/logs/symbolic_test_fastq.log
 	ls -l  ${read2} >> $baseDir/logs/symbolic_test_fastq.log
   """
@@ -142,7 +143,7 @@ process cgpMAP {
 
 process sam_sort {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	maxRetries 2
+	maxRetries 7
   storeDir "$baseDir/output/BAM/sorted"
   input:
   file bam from cgp_ch
@@ -167,14 +168,15 @@ process bam_merge {
 	file "*-merged.bam" into dup_ch
   script:
   """
+  module add python/anaconda/2020.07/3.8
+  module add samtools
 	python $baseDir/bin/python/merge_bam_v2.py --bam '${bam}'
-
   """
 }
 
 process picard_pcr_removal {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	maxRetries 2
+	maxRetries 7
 	storeDir "$baseDir/output/BAM/merge/RMD"
   input:
   file bam from dup_ch.flatten()
@@ -192,7 +194,7 @@ process picard_pcr_removal {
 
 process bam_index {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	maxRetries 2
+	maxRetries 7
 	storeDir "$baseDir/output/BAM/merge/RMD"
   input:
   file bam from index1_ch
@@ -213,7 +215,7 @@ process bam_index {
 
 process hybrid_stats {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	maxRetries 2
+	maxRetries 7
 	storeDir "$baseDir/output/BAM/hybrid_stats"
   input:
   file bam from hs_ch
@@ -224,14 +226,16 @@ process hybrid_stats {
 
 	# create interval files from BED supplied
 	picard BedToIntervalList \
-	I=${bait_interval} \
-	O=${bait_interval}.interval \
-	SD=$genome_fasta
+	-I ${bait_interval} \
+  --CREATE_INDEX true \
+	-O ${bait_interval}.interval \
+	-SD $genome_fasta
 
 	picard BedToIntervalList \
-	I=${target_interval} \
-	O=${target_interval}.interval \
-	SD=$genome_fasta
+	-I ${target_interval} \
+  --CREATE_INDEX true \
+	-O ${target_interval}.interval \
+	-SD $genome_fasta
 
 
 	# perform hybrid stats
@@ -247,7 +251,7 @@ process hybrid_stats {
 
 process alignment_stats{
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	maxRetries 2
+	maxRetries 7
 	storeDir "$baseDir/output/BAM/alignment_stats"
 	input:
 	file bam from bam10_ch
@@ -266,8 +270,13 @@ process alignment_stats{
 }
 
 process verifybamid{
+  errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 7
 	cpus 5
-	executor 'slurm'
+  executor 'slurm'
+	clusterOptions '--qos=hmem'
+	queue 'hmem-512'
+	memory '70 GB'
 	stageInMode = 'copy' // somalier doesnt like sym/hardlinks.
 	storeDir "$baseDir/output/BAM/verifyBamID"
 	input:
@@ -294,7 +303,6 @@ process verifybamid{
 
 
 process somalier{
-
 	stageInMode = 'copy' // somalier doesnt like sym/hardlinks.
   storeDir "$baseDir/output/BAM/somalier"
   input:
@@ -338,35 +346,43 @@ process multiqc{
 	script:
 	"""
 	multiqc $baseDir
+
+  # Creating final log files
+  echo ' Pipeline cgpmap v0.3 completed
+  Project: $projectname
+  Time: ${nextflow.timestamp}
+
+ trimmomatic - completed
+ cgpmap - completed
+ (reference = $cgpmap_genome)
+ (index = $cgpmap_index)
+ samsort - completed
+ picard pcr removal - completed
+ picard rename bam - completed
+ samtools bam index - completed
+ picard collect insert size - completed
+ picard collect HS stats - completed
+ (target_intervals = $target_interval)
+ (bait_intervals = $bait_interval)
+ merge bams - completed
+ ' >> $baseDir/logs/${projectname}_cgpmap_log.txt
+
+ mail -s "cgpMAP successful" aft19qdu@uea.ac.uk < $baseDir/logs/${projectname}_cgpmap_log.txt
+ mail -s "cgpMAP info" aft19qdu@uea.ac.uk < $baseDir/logs/${projectname}_cgpmap_log.txt
+
 	"""
 }
 
-
-workflow.onComplete {
+workflow.onError{
 	// create log files and record output
 	process finish{
 		script:
-		""" echo ' Pipeline cgpmap v0.3 completed
+		""" echo ' Pipeline cgpmap v0.3 FAILED
 		Project: $projectname
 		Time: ${nextflow.timestamp}
+	 ' >> $baseDir/logs/cgpMAP.${projectname}.failed.log
 
-	 trimmomatic - completed
-	 cgpmap - completed
-	 (reference = $cgpmap_genome)
-	 (index = $cgpmap_index)
-	 samsort - completed
-	 picard pcr removal - completed
-	 picard rename bam - completed
-	 samtools bam index - completed
-	 picard collect insert size - completed
-	 picard collect HS stats - completed
-	 (target_intervals = $target_interval)
-	 (bait_intervals = $target_interval)
-	 merge bams - completed
-	 ' >> $baseDir/${projectname}_log.txt
-
-	 mail -s "cgpMAP successful" aft19qdu@uea.ac.uk < $baseDir/${projectname}_log.txt
-	 mail -s "cgpMAP info" aft19qdu@uea.ac.uk < $baseDir/${projectname}_cgpmap_samples.log
+	 mail -s "cgpMAP FAIL $projectname" aft19qdu@uea.ac.uk < $baseDir/logs/cgpMAP.${projectname}.failed.log
 	 """
 	}
 }

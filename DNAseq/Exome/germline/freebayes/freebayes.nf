@@ -3,7 +3,7 @@
 /*
  * create a channel for fastq pairs
  */
-params.bam = "$baseDir{/output/BAM/merged_lanes/*.rmd.bam,/input/*.bam}"
+params.bam = "$baseDir{/output/BAM/merge/RMD/*.rmd.bam,/input/*.bam}"
 
 Channel
 	.fromPath( params.bam )
@@ -28,7 +28,11 @@ println """\
 
 process Freebayes {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	maxRetries 2
+	maxRetries 7
+  executor 'slurm'
+	clusterOptions '--qos=hmem'
+	queue 'hmem-512'
+	memory '70 GB'
   storeDir "$baseDir/output/freebayes"
   input:
   file bam from bam_ch
@@ -51,7 +55,7 @@ process vcf_filter {
   script:
   """
 	bcftools filter -i 'QUAL>5 & INFO/DP>5 & SAF > 0 & SAR > 0 & RPR > 1 & RPL > 1' \
-  ${vcf} > ${vcf.simpleName}.filtered.vcf
+  ${vcf} > ${vcf.simpleName}.FB.filtered.vcf
   """
 }
 
@@ -68,7 +72,6 @@ process zip {
 	script:
 	"""
 	bgzip ${zip}
-	mv ${zip}.gz ${zip}.freebayes.vcf.gz
 	bcftools index -t ${zip}.freebayes.vcf.gz
 	"""
 }

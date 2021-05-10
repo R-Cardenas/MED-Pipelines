@@ -2,7 +2,7 @@
 /*
  * create a channel for bam files produced by Pipeline GATK germline (single)_processing pipeline
  */
-params.bam = "$baseDir{/output/BAM/merged_lanes/*.rmd.bam,/input/*.bam}"
+params.bam = "$baseDir{/output/BAM/merge/RMD/*.rmd.bam,/input/*.bam}"
 bam_ch = Channel .fromPath( params.bam )
 
 
@@ -55,10 +55,14 @@ process BaseRecalibrator {
   """
 }
 
-// line 77/86 change
+
 process haplotypeCaller {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	maxRetries 6
+	maxRetries 7
+  executor 'slurm'
+	clusterOptions '--qos=hmem'
+	queue 'hmem-512'
+	memory '70 GB'
   storeDir "$baseDir/output/GATK_haplotypeCaller"
   input:
 	file bam from haplotype_bam_ch
@@ -79,7 +83,7 @@ process haplotypeCaller {
 	--read-index ${bam}.bai \
   -O ${bam.simpleName}.g.vcf.gz \
   --create-output-variant-index true \
-	--intervals $haplotypecaller_bed \
+	--intervals ${target_interval} \
   -ERC NONE \
 	--tmp-dir tmp
 	rm -fr tmp
@@ -117,7 +121,7 @@ process FilterVariantTranches {
 	input:
 	file vcf from filterVCF_ch
 	output:
-	file "${vcf.simpleName}.GATK.vcf" into zip_ch
+	file "${vcf.simpleName}.GATK.filtered.vcf" into zip_ch
 	script:
 	"""
 	mkdir -p tmp
@@ -134,7 +138,7 @@ process FilterVariantTranches {
 	--resource $GATK_hapmap \
 	--snp-tranche 99.95 \
 	--indel-tranche 99.4 \
-	-O ${vcf.simpleName}.GATK.vcf \
+	-O ${vcf.simpleName}.GATK.filtered.vcf \
 	--tmp-dir tmp
 	"""
 }
@@ -147,38 +151,34 @@ process zip {
 	input:
 	file zip from zip_ch
 	output:
-	file "${zip.simpleName}.GATK.vcf.gz" into merge2_ch
-	file "${zip.simpleName}.GATK.vcf.gz.csi" into merge3_ch
+	file "${zip}.gz" into merge2_ch
+	file "${zip}.gz.csi" into merge3_ch
 	script:
 	"""
 	bgzip ${zip}
-	bcftools index ${zip}.gz
+	bcftools index -c ${zip}.gz
+
+
+	echo ' Pipeline GATK germline (single) v0.2 completed
+	 Project: $projectname
+	 Time: ${nextflow.timestamp}
+	 BaseRecalibrator - completed
+	 (Reference: $genome_fasta
+		known sites: $GATK_dbsnp138
+		known sites: $GATK_1000G
+		known sites: $GATK_mills
+		target_bed: ${target_interval})
+
+	 applyBaseRecalibrator - completed
+	 bam index  - completed
+	 haplotypeCaller - completed
+
+	' >> $baseDir/logs/${projectname}_log.txt
+
+	mail -s "GATK germline (single) successful" aft19qdu@uea.ac.uk < $baseDir/logs/${projectname}_log.txt
 	"""
 }
 
-workflow.onComplete {
-	// create log files and record output
-	process finish{
-		script:
-		""" echo ' Pipeline GATK germline (single) v0.2 completed
-		Project: $projectname
-		Time: ${nextflow.timestamp}
-		BaseRecalibrator - completed
-		(Reference: $genome_fasta
-		 known sites: $GATK_dbsnp138
-		 known sites: $GATK_1000G
-		 known sites: $GATK_mills)
-
-		applyBaseRecalibrator - completed
-		bam index  - completed
-		haplotypeCaller - completed
-
-	 ' >> $baseDir/${projectname}_log.txt
-
-	 mail -s "GATK germline (single) successful" aft19qdu@uea.ac.uk < $baseDir/${projectname}_log.txt
-	 """
-	}
-}
 
 workflow.onError {
 	process finish_error{
@@ -189,9 +189,9 @@ workflow.onError {
 		Time: ${nextflow.timestamp}
 
 		Error:
-		${workflow.errorMessage}' >> $baseDir/${projectname}_error.txt
+		${workflow.errorMessage}' >> $baseDir/logs/${projectname}_GATKerror.txt
 
-	  mail -s "Pipeline GATK germline (single) unsuccessful" aft19qdu@uea.ac.uk < $baseDir/${projectname}_error.txt
+	  mail -s "Pipeline GATK germline (single) unsuccessful - $projectname" aft19qdu@uea.ac.uk < $baseDir/logs/${projectname}_GATKerror.txt
 	  """
 	}
 }

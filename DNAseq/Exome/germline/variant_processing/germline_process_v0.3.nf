@@ -85,34 +85,35 @@ process indels_sort {
 
 process VEP {
   executor 'slurm'
-  cpus 3
+  //cpus 3
   errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
-  storeDir "$baseDir/output/VCF_collect/split_vcf/VEP5"
+  storeDir "$baseDir/output/VCF_collect/split_vcf/VEP66"
   input:
   file vcf from vep_ch.flatten()
   output:
-  file "${vcf.baseName}_VEP.vcf" into vep32_ch
+  file "${vcf.baseName}_VEP.vcf"
   script:
   """
-  /ensembl-vep/vep -i ${vcf} \
-  --dir /var/spool/mail/VEP_hg38/.vep \
+  vep -i ${vcf} \
+  --dir_cache /var/spool/mail/VEP_hg38/.vep \
   -o ${vcf.baseName}_VEP.vcf \
   --cache \
   --offline \
   --species human \
   --assembly GRCh38 \
-  --fork 3 \
+  -af_1kg \
+  --fork 5 \
   --offline \
   --fasta /var/spool/mail/cgpwgs_ref/GRCh38/core_ref_GRCh38_hla_decoy_ebv/genome.fa \
+  --custom /var/spool/mail/VEP_hg38/gnomad_hg38/gnomad.exomes.r2.0.1.sites.noVEP.vcf.gz,gnomad_exomes,vcf,exact,0,AF_NFE \
+  --custom /var/spool/mail/conservation/hg38.phastCons7way.bw,Conservation,bigwig,exact \
   --show_ref_allele \
   --use_given_ref \
   --verbose \
   --check_ref \
   --dont_skip \
-  --custom /var/spool/mail/conservation/hg38.phastCons7way.bw,Conservation,bigwig \
   --af_gnomad \
-  --custom /var/spool/mail/gnomAD_v2_GRCh38/gnomad.exomes.r2.1.sites.grch38.concat.ALL.vcf.gz,gnomADg,vcf,exact,0,AF_AFR,AF_AMR,AF_ASJ,AF_EAS,AF_FIN,AF_NFE,AF_OTH \
   --vcf \
   --pubmed \
   --check_existing \
@@ -120,22 +121,6 @@ process VEP {
   --force_overwrite
   """
 }
-
-
-process vep_header2 {
-  storeDir "$baseDir/output/VCF_collect/split_vcf/VEP4"
-  input:
-  file txt from vep32_ch
-  output:
-  file "${txt.baseName}_noheader.txt"
-  script:
-  """
-  sed -i 's/#Uploaded_variation/Uploaded_variation/g' ${txt}
-  awk '!/\\#/' ${txt} > ${txt.baseName}_noheader.txt
-
-  """
-}
-
 
 
 // and VEP_fasta added
@@ -230,54 +215,41 @@ process snps_sort {
   """
 }
 
-process VEP2 {
+process VEP111 {
   executor 'slurm'
-  cpus 3
+  //cpus 3
   errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
-  storeDir "$baseDir/output/VCF_collect/split_vcf/VEP5"
+  storeDir "$baseDir/output/VCF_collect/split_vcf/VEP66"
   input:
   file vcf from vep2_ch.flatten()
   output:
-  file "${vcf.baseName}_VEP.vcf" into vep3_ch
+  file "${vcf.baseName}_VEP.vcf"
   script:
   """
-  /ensembl-vep/vep -i ${vcf} \
-  --dir /var/spool/mail/VEP_hg38/.vep \
+  vep -i ${vcf} \
+  --dir_cache /var/spool/mail/VEP_hg38/.vep \
   -o ${vcf.baseName}_VEP.vcf \
   --cache \
   --offline \
   --species human \
   --assembly GRCh38 \
-  --fork 3 \
+  -af_1kg \
+  --fork 5 \
   --offline \
   --fasta /var/spool/mail/cgpwgs_ref/GRCh38/core_ref_GRCh38_hla_decoy_ebv/genome.fa \
+  --custom /var/spool/mail/VEP_hg38/gnomad_hg38/gnomad.exomes.r2.0.1.sites.noVEP.vcf.gz,gnomad_exomes,vcf,exact,0,AF_NFE \
+  --custom /var/spool/mail/conservation/hg38.phastCons7way.bw,Conservation,bigwig,exact \
   --show_ref_allele \
   --use_given_ref \
   --verbose \
   --check_ref \
   --dont_skip \
-  --custom /var/spool/mail/conservation/hg38.phastCons7way.bw,Conservation,bigwig \
   --af_gnomad \
-  --custom /var/spool/mail/gnomAD_v2_GRCh38/gnomad.exomes.r2.1.sites.grch38.concat.ALL.vcf.gz,gnomADg,vcf,exact,0,AF_AFR,AF_AMR,AF_ASJ,AF_EAS,AF_FIN,AF_NFE,AF_OTH \
   --vcf \
   --pubmed \
   --check_existing \
   --everything \
   --force_overwrite
-  """
-}
-
-process vep_header22 {
-  storeDir "$baseDir/output/VCF_collect/split_vcf/VEP4"
-  input:
-  file txt from vep3_ch
-  output:
-  file "${txt.baseName}_noheader.txt"
-  script:
-  """
-  sed -i 's/#Uploaded_variation/Uploaded_variation/g' ${txt}
-  awk '!/\\#/' ${txt} > ${txt.baseName}_noheader.txt
-
   """
 }

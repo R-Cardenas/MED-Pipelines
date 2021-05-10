@@ -25,9 +25,10 @@
 
 <br />
 
-At UEA bob champion genomics we have developed a number of pipelines specialising for processing sequencing data. We have developed a system that allows the easy use of these pipelines by downloading the github repository, moving fastq files into input directory and configuring which analyses to perform by configuring the "XXX.config" file. The pipeline has been written using the nextflow workflow management.
+At UEA MEDgenomics we have developed a number of pipelines specialising for processing sequencing data. Mainly the processing of DNA-seq for identification of variants. We have developed a system that allows the easy use of these pipelines by downloading the github repository, editing a config file and copying the nextflow scripts to the working directory.
 
 <br />
+
 
 Irrespective of the pipelines chosen, all workflows perform similar analyses:
 
@@ -43,17 +44,16 @@ Irrespective of the pipelines chosen, all workflows perform similar analyses:
 
 <br />
 
-The quality control pipeline contains a static backbone that is present with all data types (black). Dependent on the type of data used extra tools are added onto this backbone (shown in figure 2 below). Therefore, if you are planning to process exome dna-seq data for somatic mutations then you would select "exome-somatic_QC" in the config file so it know to include tools to measure hybridisation stats.
+All pipelines start with a QC modules, which contains a backbone that is present across all pipelines (black, figure2). Dependent on the type of data used extra tools are added onto this backbone. Therefore, if you are planning to process exome dna-seq data for somatic mutations then you would select follow the Exome-germline pipeline tutorial in this repo.
 
 <br />
 
 ![figure-2](misc/figure2.png)
 
 
-
 ### Pipelines available
 
-After alignment and QC, the following pipelines are available to process your samples. For more information about the steps involved in these - click on the links below.
+Below are the pipelines we have developed. Please click on the links for instructions on how to use and set up.
 
 DNA-seq:
 
@@ -67,7 +67,7 @@ DNA-seq:
 
 RNA-seq:
 
-  - mRNA RNA-seq (Hisat2)
+  - mRNA RNA-seq (nfcore/RNAseq)
 
 
 ## Usage
@@ -78,77 +78,15 @@ As a mininum you will require the following dependencies:
 
   - Singularity (v3+)
   - Nextflow (v19+)
-  - Python 3+ (with pyYAML)
   - git and git account
-  - An account on the HPC..!!! you do it this way...??
+  - A HPC account (developed for slurm)
 
 
 ### Input names
 
-Currently, the pipeline can only receive fastq.gz input files and these require their names to be formatted to allow the pipeline to run smoothly. Below shows the correct format with an example:
+Currently, the pipeline only receives fastq.gz input files and these require their names to be formatted to allow the pipeline to run . Below shows the correct format with an example:
 
 ![figure-3](misc/figure3.png)
 
 
 The entries can be named anything, it is the dashes that are important to seperate these fields in the pipeline. Also, if there is one sample from different lanes, ensure that the sample field are the same in both.
-
-
-
-### Tutorial
-
-
-#### 1. Download repo
-
-
-In order to test the pipeline download clone this repository to your working directory using:
-
-```
-git clone https://github.com/R-Cardenas/pipelines_clean.git
-```
-
-This will download all the scripts in addition to some test data directly into the input folder so that the pipeline can be tested (The input folder is where your fastq files are to go also.)
-
-
-
-#### 2. Modify the master config file file
-
-
-In the home directory of the repo there is a file called master_user_config.yaml. This is the file you are to edit to configure the pipeline.
-
-Below is a simplified version of the config file:
-note: hpc 'no' has not yet been configured. Pipelines can only be run on the HPC for now.
-
-
-```
-samples: "dna-exome-germline"
-genome_assemble: "hg38"
-hpc: "yes"
-merged_lanes: "no"
-pipelines: "freebayes gatk_haplotypecaller"
-```
-
-
-# Technical Information
-
-First it is reccommended to read how a basic nextflow pipeline is built (https://www.nextflow.io/docs/latest/getstarted.html)
-
-The pipelines we have currently are shown below. Click on each individual link to access each README md. For the user README, which explains how to use the pipelines please click here (link).
-
-DNA-seq:
-
-  Mapping:
-    - cgpMAP ([link](DNAseq/DNAseq_README.md))
-
-  Somatic variant discovery Exome:
-    - cgpWXS (link)
-    - GATK mutect2 (link)
-
-  Somatic variant discovery WGS:
-    - cgpWGS (link)
-    - GATK mutect2 (link)
-
-  Germline variant discovery:
-    - Nextflow Sarek (exome/WGS; link)
-
-RNA-seq:
-  - Nextflow RNA-seq pipeline (link)

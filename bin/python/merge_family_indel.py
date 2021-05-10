@@ -59,8 +59,7 @@ for f in unique:
 
         # We need to reconstruct the name again for merge_family_indel.py - see line 71
         outputname = selected_files[0].split("-")
-        outputname2 = outputname[0] + "-" + outputname[1] + "-" + "family.merged.indels.vcf"
-
+        outputname2 = outputname[1] + "-familymerged.indels.vcf"
         cmd = f"""
         bedtools intersect \
         -a {selected_files[1]} \
@@ -75,7 +74,7 @@ for f in unique:
 
         # We need to reconstruct the name again for merge_family_indel.py - see line 71
         outputname = selected_files[0].split("-")
-        outputname2 = outputname[0] + "-" + outputname[1] + "-" + "family.merged.indels.vcf"
+        outputname2 = outputname[1] + "-familymerged.indels.vcf"
 
         file = pathlib.Path(f'{outputname2}')
 
