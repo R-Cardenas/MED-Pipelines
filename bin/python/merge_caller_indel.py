@@ -7,7 +7,7 @@ import pathlib
 import os
 
 # Test input below:
-files = 'sample1-fam1-GATK.vcf.gz sample1-fam1-freebayes.vcf.gz sample2-fam2-freebayes.vcf.gz sample1-fam1-freebabes.vcf.gz'
+#files = 'sample1-fam1-GATK.vcf.gz sample1-fam1-freebayes.vcf.gz sample2-fam2-freebayes.vcf.gz sample1-fam1-freebabes.vcf.gz'
 
 #############
 # ARG PARSE #

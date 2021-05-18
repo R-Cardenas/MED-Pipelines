@@ -32,7 +32,7 @@ process Freebayes {
   executor 'slurm'
 	clusterOptions '--qos=hmem'
 	queue 'hmem-512'
-	memory '70 GB'
+	memory { 30.GB * task.attempt }
   storeDir "$baseDir/output/freebayes"
   input:
   file bam from bam_ch
@@ -44,18 +44,18 @@ process Freebayes {
   """
 }
 
-process vcf_filter {
+process vcf_filter{
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
+	memory { 7.GB * task.attempt }
   storeDir "$baseDir/output/freebayes"
   input:
   file vcf from vcf_ch
   output:
-  file "${vcf.simpleName}.filtered.vcf" into zip2_ch
+  file "${vcf.simpleName}-freebayes.vcf" into zip2_ch
   script:
   """
-	bcftools filter -i 'QUAL>5 & INFO/DP>5 & SAF > 0 & SAR > 0 & RPR > 1 & RPL > 1' \
-  ${vcf} > ${vcf.simpleName}.FB.filtered.vcf
+  bcftools filter -i 'QUAL>5 & INFO/DP>5 & SAF > 0 & SAR > 0 & RPR > 1 & RPL > 1' ${vcf} > ${vcf.simpleName}-freebayes.vcf
   """
 }
 
@@ -67,36 +67,34 @@ process zip {
 	input:
 	file zip from zip2_ch
 	output:
-	file "${zip}.freebayes.vcf.gz" into merge_ch
-	file "${zip}.freebayes.vcf.gz.tbi" into csi_ch
+	file "${zip}.gz" into merge_ch
+	file "${zip}.gz.csi" into csi_ch
 	script:
 	"""
 	bgzip ${zip}
-	bcftools index -t ${zip}.freebayes.vcf.gz
+	bcftools index -c ${zip}.gz
+
+
+	echo ' Pipeline GATK germline (single) v0.2 completed
+	 Project: $projectname
+	 Time: ${nextflow.timestamp}
+	 BaseRecalibrator - completed
+	 (Reference: $genome_fasta
+		known sites: $GATK_dbsnp138
+		known sites: $GATK_1000G
+		known sites: $GATK_mills
+		target_bed: ${target_interval})
+
+	 applyBaseRecalibrator - completed
+	 bam index  - completed
+	 haplotypeCaller - completed
+
+	' >> $baseDir/logs/${projectname}_log.txt
+
+	#mail -s "GATK germline (single) successful" aft19qdu@uea.ac.uk < $baseDir/logs/${projectname}_log.txt
 	"""
 }
 
-
-workflow.onComplete {
-	// create log files and record output
-	process finish{
-		script:
-		""" echo ' Pipeline Freebayes germline v0.2 completed
-		Project: $projectname
-		Time: ${nextflow.timestamp}
-
-	 Freebayes - completed
-	 (Reference - $genome_fasta)
-	 VCFTools - completed
-	 (Parameters: "bcftools filter -i 'QUAL>5 & INFO/DP>5 & SAF > 0 & SAR > 0 & RPR > 1 & RPL > 1' )
-	 Bgzip - completed
-	 BcfTools Index - completed
-	 ' >> $baseDir/${projectname}_log.txt
-
-	 mail -s "Freebayes successful" < $baseDir/${projectname}_log.txt
-	 """
-	}
-}
 
 workflow.onError {
 	process finish_error{
@@ -106,9 +104,9 @@ workflow.onError {
 		Time: ${nextflow.timestamp}
 
 		Error:
-		${workflow.errorMessage}' {input} >> $baseDir/${projectname}_error.txt
+		${workflow.errorMessage}' {input} >> $baseDir/logs/${projectname}_error.txt
 
-	  mail -s "cgpMAP successful" {input} < $baseDir/${projectname}_error.txt
+	  #mail -s "cgpMAP successful" {input} < $baseDir/logs/${projectname}_error.txt
 	  """
 	}
 }

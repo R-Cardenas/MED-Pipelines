@@ -23,8 +23,10 @@ println """\
          .stripIndent()
 
 process BaseRecalibrator {
-	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	maxRetries 6
+	//errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	//maxRetries 6
+	executor 'slurm'
+	memory { 7.GB * task.attempt }
   storeDir "$baseDir/output/GATK_haplotypeCaller"
   input:
   file bam from bam_ch
@@ -58,11 +60,11 @@ process BaseRecalibrator {
 
 process haplotypeCaller {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	maxRetries 7
+	maxRetries 6
   executor 'slurm'
 	clusterOptions '--qos=hmem'
 	queue 'hmem-512'
-	memory '70 GB'
+	memory { 30.GB * task.attempt }
   storeDir "$baseDir/output/GATK_haplotypeCaller"
   input:
 	file bam from haplotype_bam_ch
@@ -94,6 +96,8 @@ process haplotypeCaller {
 process CNNscoreVariants {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
+	executor 'slurm'
+	memory { 7.GB * task.attempt }
   storeDir "$baseDir/output/GATK_haplotypeCaller"
   input:
   file vcf from haplotype2_ch
@@ -117,11 +121,13 @@ process CNNscoreVariants {
 process FilterVariantTranches {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
+	executor 'slurm'
+	memory { 7.GB * task.attempt }
   storeDir "$baseDir/output/GATK_haplotypeCaller"
 	input:
 	file vcf from filterVCF_ch
 	output:
-	file "${vcf.simpleName}.GATK.filtered.vcf" into zip_ch
+	file "${vcf.simpleName}-GATK.vcf" into zip_ch
 	script:
 	"""
 	mkdir -p tmp
@@ -138,7 +144,7 @@ process FilterVariantTranches {
 	--resource $GATK_hapmap \
 	--snp-tranche 99.95 \
 	--indel-tranche 99.4 \
-	-O ${vcf.simpleName}.GATK.filtered.vcf \
+	-O ${vcf.simpleName}-GATK.vcf \
 	--tmp-dir tmp
 	"""
 }
@@ -147,6 +153,7 @@ process FilterVariantTranches {
 process zip {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
+	executor 'local'
   storeDir "$baseDir/output/VCF_collect"
 	input:
 	file zip from zip_ch
@@ -175,7 +182,7 @@ process zip {
 
 	' >> $baseDir/logs/${projectname}_log.txt
 
-	mail -s "GATK germline (single) successful" aft19qdu@uea.ac.uk < $baseDir/logs/${projectname}_log.txt
+	#mail -s "GATK germline (single) successful" aft19qdu@uea.ac.uk < $baseDir/logs/${projectname}_log.txt
 	"""
 }
 
