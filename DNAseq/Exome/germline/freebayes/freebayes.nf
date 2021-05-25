@@ -37,7 +37,7 @@ process Freebayes {
   input:
   file bam from bam_ch
   output:
-  file "${bam.simpleName}.raw.vcf" into vcf_ch // inset $project name from config file
+  file "${bam.simpleName}.raw.vcf" into (vcf_ch,count1_ch) // inset $project name from config file
   script:
   """
   freebayes ${bam} -f $genome_fasta > ${bam.simpleName}.raw.vcf
@@ -52,10 +52,27 @@ process vcf_filter{
   input:
   file vcf from vcf_ch
   output:
-  file "${vcf.simpleName}-freebayes.vcf" into zip2_ch
+  file "${vcf.simpleName}-freebayes.vcf" into (zip2_ch, count2_ch)
   script:
   """
   bcftools filter -i 'QUAL>5 & INFO/DP>5 & SAF > 0 & SAR > 0 & RPR > 1 & RPL > 1' ${vcf} > ${vcf.simpleName}-freebayes.vcf
+  """
+}
+
+process count_variants{
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
+	memory { 7.GB * task.attempt }
+  storeDir "$baseDir/output/variant_counts/freebayes"
+  input:
+	file vcf from count1_ch
+  file vcf2 from count2_ch
+  output:
+  file "*.count"
+  script:
+  """
+	python $baseDir/bin/python/vcf_count.py --vcf $vcf --output ${vcf}.unfiltered.count
+	python $baseDir/bin/python/vcf_count.py --vcf $vcf2 --output ${vcf2}.filtered.count
   """
 }
 

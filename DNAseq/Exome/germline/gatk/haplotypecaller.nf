@@ -69,7 +69,7 @@ process haplotypeCaller {
   input:
 	file bam from haplotype_bam_ch
   output:
-  file "${bam.simpleName}.g.vcf.gz" into haplotype2_ch
+  file "${bam.simpleName}.g.vcf.gz" into (haplotype2_ch,count1_ch)
 	file "${bam}.bai"
   script:
   """
@@ -127,7 +127,7 @@ process FilterVariantTranches {
 	input:
 	file vcf from filterVCF_ch
 	output:
-	file "${vcf.simpleName}-GATK.vcf" into zip_ch
+	file "${vcf.simpleName}-GATK.vcf" into (zip_ch,count2_ch)
 	script:
 	"""
 	mkdir -p tmp
@@ -148,6 +148,24 @@ process FilterVariantTranches {
 	--tmp-dir tmp
 	"""
 }
+
+process count_variants{
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
+	memory { 7.GB * task.attempt }
+  storeDir "$baseDir/output/variant_counts/GATK"
+  input:
+	file vcf from count1_ch
+  file vcf2 from count2_ch
+  output:
+  file "*.count"
+  script:
+  """
+	python $baseDir/bin/python/vcf_count.py --vcf $vcf --output ${vcf}.unfiltered.count
+	python $baseDir/bin/python/vcf_count.py --vcf $vcf2 --output ${vcf2}.filtered.count
+  """
+}
+
 
 // needs samttools
 process zip {

@@ -1,15 +1,12 @@
-params.tumor = ["PD13382a.cram","PD13389a.cram","PD13399a.cram"]
-params.normal = ["PD13382b.cram","PD13389b.cram","PD13399b.cram"]
-
 /*
  * create a channel for bam files produced by cgpmap_processing pipeline
  */
-params.bam = "$baseDir/{output/aligned_sorted/*.rename.bam,input/*.bam}"
+params.bam = "$baseDir{/output/BAM/merge/RMD/*.rmd.bam,/input/*.bam}"
 bam_ch = Channel .fromPath( params.bam )
 
 bam_ch.into { bam2_ch; bam3_ch }
-tumor_ch = Channel .from (params.tumor )
-normal_ch = Channel .from (params.normal )
+tumor_ch = Channel .from (params_tumor )
+normal_ch = Channel .from (params_normal )
 
 println """\
 	\
@@ -30,7 +27,11 @@ println """\
 
 process BaseRecalibrator {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	maxRetries 6
+	maxRetries 7
+  executor 'slurm'
+	clusterOptions '--qos=hmem'
+	queue 'hmem-512'
+	memory { 30.GB * task.attempt }
   storeDir "$baseDir/output/GATK_haplotypeCaller"
   input:
   file bam from bam2_ch
@@ -61,15 +62,19 @@ process BaseRecalibrator {
 }
 
 process mutect2 {
-	//errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	//maxRetries 6
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 7
+  executor 'slurm'
+	clusterOptions '--qos=hmem'
+	queue 'hmem-512'
+	memory { 30.GB * task.attempt }
   storeDir "$baseDir/output/mutect2"
   input:
   val x from tumor_ch
   val y from normal_ch
   file bam from mutect2_1_ch.collect()
   output:
-  file "*.vcf.gz" into filter_vcf_ch
+  file "*-unfiltered-GATK.vcf.gz" into filter_vcf_ch 
   script:
   """
 	python $baseDir/bin/python/run_mutect2.py \
@@ -82,7 +87,10 @@ process mutect2 {
 }
 
 process pileup_summary{
-  storeDir "$baseDir/output/mutect2/mutect2"
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
+	memory { 7.GB * task.attempt }
+  storeDir "$baseDir/output/mutect2/pileup"
 	input:
 	file bam from pileup_ch.flatten()
 	output:
@@ -98,7 +106,10 @@ process pileup_summary{
 }
 
 process calculate_contamination{
-	storeDir "$baseDir/output/mutect2/mutect2"
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
+	memory { 7.GB * task.attempt }
+	storeDir "$baseDir/output/mutect2/contamination"
 	input:
 	file table from contamination_ch
 	output:
@@ -113,12 +124,15 @@ process calculate_contamination{
 
 
 process filter_vcf {
-	storeDir "$baseDir/output/mutect2/mutect2/filtered_vcf"
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
+	memory { 7.GB * task.attempt }
+	storeDir "$baseDir/output/mutect2/filtered_vcf"
 	input:
 	file vcf from filter_vcf_ch
 	file table from filter_vcf2_ch
 	output:
-	file "${vcf.simpleName}.filtered.vcf" into zip_ch
+	file "${vcf.simpleName}_filtered-GATK.vcf" into zip_ch
 	script:
 	"""
 	gatk FilterMutectCalls \
@@ -131,6 +145,9 @@ process filter_vcf {
 
 // needs samttools
 process zip {
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
+	memory { 7.GB * task.attempt }
   storeDir "$baseDir/output/VCF_collect"
 	input:
 	file zip from zip_ch
@@ -139,39 +156,31 @@ process zip {
 	script:
 	"""
 	bgzip ${zip}
+
+	echo ' Pipeline GATK germline (cohort) v0.3 completed
+	Project: $projectname
+	Time: ${nextflow.timestamp}
+	BaseRecalibrator - completed
+	(Reference: $genome_fasta
+	 known sites: $GATK_dbsnp138
+	 known sites: $GATK_1000G
+	 known sites: $GATK_mills)
+
+	applyBaseRecalibrator - completed
+	bam index  - completed
+	Mutect2- completed
+	(germline-resource: $Mutect2_germline \
+	 panel-of-normal: $Mutect2_PoN )
+
+	Pile up summary - completed
+	Contamination calculation - completed
+	Filter Mutect VCF - completed
+
+
+ ' >> $baseDir/logs/${projectname}_log.txt
+
+ #mail -s "GATK germline (cohort) successful" aft19qdu@uea.ac.uk < $baseDir/${projectname}_log.txt
 	"""
-}
-
-
-workflow.onComplete {
-	// create log files and record output
-	process finish{
-		script:
-		""" echo ' Pipeline GATK germline (cohort) v0.3 completed
-		Project: $projectname
-		Time: ${nextflow.timestamp}
-		BaseRecalibrator - completed
-		(Reference: $genome_fasta
-		 known sites: $GATK_dbsnp138
-		 known sites: $GATK_1000G
-		 known sites: $GATK_mills)
-
-		applyBaseRecalibrator - completed
-		bam index  - completed
-		Mutect2- completed
-		(germline-resource: $Mutect2_germline \
-		 panel-of-normal: $Mutect2_PoN )
-
-		Pile up summary - completed
-		Contamination calculation - completed
-		Filter Mutect VCF - completed
-
-
-	 ' >> $baseDir/${projectname}_log.txt
-
-	 mail -s "GATK germline (cohort) successful" aft19qdu@uea.ac.uk < $baseDir/${projectname}_log.txt
-	 """
-	}
 }
 
 workflow.onError {
@@ -185,7 +194,7 @@ workflow.onError {
 		Error:
 		${workflow.errorMessage}' >> $baseDir/${projectname}_error.txt
 
-	  mail -s "cgpMAP successful" aft19qdu@uea.ac.uk < $baseDir/${projectname}_error.txt
+	  #mail -s "cgpMAP successful" aft19qdu@uea.ac.uk < $baseDir/${projectname}_error.txt
 	  """
 	}
 }

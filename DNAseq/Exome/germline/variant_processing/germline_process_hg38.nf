@@ -12,7 +12,7 @@ process merge_caller_indels {
   input:
   file vcf from vcf2_ch.collect()
   output:
-  file "*caller.merged.indels.vcf.gz" into fam_ch
+  file "*caller.merged.indels.vcf.gz" into (fam_ch,count1_ch)
   script:
   """
   for file in *.vcf*; do
@@ -25,6 +25,22 @@ process merge_caller_indels {
     bgzip \$file
   done
 
+  """
+}
+
+process count_variants{
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	executor 'local'
+  storeDir "$baseDir/output/variant_counts/indels/caller_merge"
+  input:
+	file vcf from count1_ch.flatten()
+  output:
+  file "${vcf}.CallerMerge.indels.count" into sumCounts1_ch
+  script:
+  """
+  python $baseDir/bin/python/vcf_count.py --vcf $vcf --output ${vcf}.CallerMerge.indels.count1
+
+  grep -v 'snp' ${vcf}.CallerMerge.indels.count1 > ${vcf}.CallerMerge.indels.count
   """
 }
 
@@ -54,14 +70,32 @@ process merge_family_indels {
 process indels_filter {
   errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
+  memory { 7.GB * task.attempt }
+  executor 'slurm'
   storeDir "$baseDir/output/VCF_collect/merge_vcf/indels/family/filter"
   input:
   file vcf from indels_filter_ch.flatten()
   output:
-  file "${vcf.simpleName}.indels.vcf.gz" into indels_sort_ch
+  file "${vcf.simpleName}.indels.vcf.gz" into (indels_sort_ch,count2_ch)
   script:
   """
   bcftools view -O z -v indels ${vcf} > ${vcf.simpleName}.indels.vcf.gz
+  """
+}
+
+process count_variants2{
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	executor 'local'
+  storeDir "$baseDir/output/variant_counts/indels/family_merge"
+  input:
+	file vcf from count2_ch.flatten()
+  output:
+  file "${vcf}.FamMerge.indels.count" into sumCounts2_ch
+  script:
+  """
+	python $baseDir/bin/python/vcf_count.py --vcf $vcf --output ${vcf}.FamMerge.indels.count1
+
+  grep -v 'snp' ${vcf}.FamMerge.indels.count1 > ${vcf}.FamMerge.indels.count
   """
 }
 
@@ -129,7 +163,7 @@ process merge_caller_snps {
   input:
   file vcf from vcf1_ch.collect()
   output:
-  file "*callermerged.vcf.gz" into snps_fam_ch
+  file "*callermerged.vcf.gz" into (snps_fam_ch,count3_ch)
   script:
   """
   for file in *.vcf*; do
@@ -148,6 +182,23 @@ process merge_caller_snps {
   # this will take 0000.vcf which uses GATK vcf info fields.
   """
 }
+
+process count_variants3{
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	executor 'local'
+  storeDir "$baseDir/output/variant_counts/snps/caller_merge"
+  input:
+	file vcf from count3_ch.flatten()
+  output:
+  file "${vcf}.CallerMerge.snps.count" into sumCounts3_ch
+  script:
+  """
+	python $baseDir/bin/python/vcf_count.py --vcf $vcf --output ${vcf}.CallerMerge.snps.count1
+
+  grep 'snp' ${vcf}.CallerMerge.snps.count1 > ${vcf}.CallerMerge.snps.count
+  """
+}
+
 
 process merge_fam_snps{
   errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
@@ -187,12 +238,29 @@ process snps_filter {
   input:
   file vcf from snps_filter_ch.flatten()
   output:
-  file "${vcf.simpleName}.snps.vcf.gz" into snps_sort_ch
+  file "${vcf.simpleName}.snps.vcf.gz" into (snps_sort_ch,count4_ch)
   script:
   """
   bcftools view -O z -V indels ${vcf} > ${vcf.simpleName}.snps.vcf.gz
   """
 }
+
+process count_variants4{
+	executor 'local'
+	memory { 7.GB * task.attempt }
+  storeDir "$baseDir/output/variant_counts/snps/family_merge"
+  input:
+	file vcf from count4_ch.flatten()
+  output:
+  file "${vcf}.FamMerge.snps.count" into sumCounts4_ch
+  script:
+  """
+	python $baseDir/bin/python/vcf_count.py --vcf $vcf --output ${vcf}.FamMerge.snps.count1
+
+  grep 'snp' ${vcf}.FamMerge.snps.count1 > ${vcf}.FamMerge.snps.count
+  """
+}
+
 
 process snps_sort {
   errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
@@ -247,5 +315,35 @@ process VEP2 {
   --check_existing \
   --everything \
   --force_overwrite
+  """
+}
+
+
+process Rtables {
+	executor 'local'
+  storeDir "$baseDir/output/variant_counts/data"
+  input:
+  file indelC from sumCounts1_ch.collect()
+  file indelF from sumCounts2_ch.collect()
+  file snpC from sumCounts3_ch.collect()
+  file snpF from sumCounts4_ch.collect()
+  output:
+  file "CallerOverlapCount.csv" into r1_ch
+  file "FamilyOverlapCount.csv" into r2_ch
+
+  script:
+  """
+  Rscript $baseDir/bin/R/variantCounts.R -v "$indelC" -f NA -w "*.CallerMerge.indels.count" -c NA -o Indels.CallerOverlap.csv -O "Caller Overlap"
+  Rscript $baseDir/bin/R/variantCounts.R -v "$indelF" -f NA -w "*.FamMerge.indels.count" -c NA -o Indels.FamilyOverlap.csv -O "Group/Family Overlap"
+
+  Rscript $baseDir/bin/R/variantCounts.R -v "$snpC" -f NA -w "*.CallerMerge.snps.count" -c NA -o Snps.CallerOverlap.csv -O "Caller Overlap"
+  Rscript $baseDir/bin/R/variantCounts.R -v "$snpF" -f NA -w "*.FamMerge.snps.count" -c NA -o Snps.FamilyOverlap.csv -O "Group/Family Overlap"
+
+  # Merge the SNPs and Indels
+  tail -n +2 Indels.CallerOverlap.csv > Indels.CallerOverlap.csv
+  cat Snps.CallerOverlap.csv Indels.CallerOverlap.csv > CallerOverlapCount.csv
+
+  tail -n +2 Indels.FamilyOverlap.csv > Indels.FamilyOverlap.csv
+  cat Snps.FamilyOverlap.csv Indels.FamilyOverlap.csv > FamilyOverlapCount.csv
   """
 }

@@ -1,10 +1,7 @@
 
-params.tumor = ["PD13382a.cram","PD13399a.cram"]
-params.normal = ["PD13382b.cram","PD13399b.cram"]
-
 // Define Tumor vs Normal Variables
-tumor_ch = Channel .from (params.tumor )
-normal_ch = Channel .from (params.normal )
+tumor_ch = Channel .from (params_tumor )
+normal_ch = Channel .from (params_normal )
 
 println """\
 	\
@@ -20,20 +17,27 @@ println """\
          .stripIndent()
 
 process cgpwxs2 {
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 7
+  executor 'slurm'
+	clusterOptions '--qos=hmem'
+	queue 'hmem-512'
+	memory { 30.GB * task.attempt }
 	storeDir "$baseDir/output/cgpwxs/${tumor}_vs_${normal}"
 	input:
 	val tumor from tumor_ch
 	val normal from normal_ch
 	output:
-	file "WXS_${tumor}_vs_${normal}.result.tar.gz"
+	file "WXS_${tumor}_vs_${normal}.result.tar.gz" into untar_ch
 	script:
 	"""
+	rm -fr $baseDir/output/cgpwxs/${tumor}_vs_${normal} # during retry if file exist causes fail
   mkdir -p $baseDir/output/cgpwxs/${tumor}_vs_${normal}
 
 	singularity exec --cleanenv \
 	--home $baseDir \
 	--bind /gpfs/afm/cg_pipelines/Pipelines/singularity/genomes:/var/spool/ref:ro \
-	--bind $baseDir/input:/var/spool/data:ro \
+	--bind $baseDir/output/BAM/merge/RMD/:/var/spool/data:ro \
 	/gpfs/afm/cg_pipelines/Pipelines/singularity/images/cgpwxs_3.1.6.img \
 ds-cgpwxs.pl \
 -reference $cgp_ref \

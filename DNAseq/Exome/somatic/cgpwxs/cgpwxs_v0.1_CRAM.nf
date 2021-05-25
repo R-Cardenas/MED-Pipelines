@@ -1,7 +1,7 @@
 
 // Define Tumor vs Normal Variables
-tumor_ch = Channel .from (params.tumor )
-normal_ch = Channel .from (params.normal )
+tumor_ch = Channel .from (params_tumor )
+normal_ch = Channel .from (params_normal )
 
 println """\
 	\

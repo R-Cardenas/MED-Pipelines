@@ -72,6 +72,7 @@ After the config files have been updated. We next have to copy the require files
 ```
 module add nextflow
 module add singularity
+module add python/anaconda/2020.11/3.8
 
 cp DNAseq/Exome/cgpmap/dna-exome-merge.nf .
 

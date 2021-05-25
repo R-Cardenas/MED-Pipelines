@@ -36,17 +36,25 @@ ref1 = args.ref
 
 
 ##########################
-# Obtin globs for files  #
+# Obtain globs for files  #
 ##########################
 
 tumor2 = tumor1.split("-")
 tumor3 = tumor2[0] + '-' + tumor2[1] # take sample name (eg sample1) and descriptor (eg normal or tumor )
-tumor_path = strip(glob.glob(tumor3 + '*'))
+tumor_path = strip(glob.glob(tumor3 + '*')) # find path of bam file using sample-tumorID (e.g. S01-TUMOR*)
 
 
 normal2 = normal1.split("-")
 normal3 = normal2[0] + '-' + normal2[1] # take sample name (eg sample1) and descriptor (eg normal or normal )
 normal_path = strip(glob.glob(normal3 + '*'))
+
+# check samples are the same
+if normal[0] == tumor[0]:
+    pass
+else:
+    SyntaxError("Sample names for Tumor and Normal samples are different please revise")
+# create output name
+final_name = tumor[0] + '-unfiltered-GATK.vcf.gz' 
 
 ##########################
 # Mutect2 command to run #
@@ -72,7 +80,7 @@ gatk Mutect2 \
 -normal {normal_path} \
 --germline-resource {germline1} \
 --panel-of-normals {pon1} \
--O ${normal_path}vs${tumor_path}.vcf.gz"""
+-O ${final_name}"""
 
 ############
 ### RUN ###
