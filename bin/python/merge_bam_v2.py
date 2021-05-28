@@ -20,6 +20,7 @@ files2 = files.split(" ")
 
 bam_samples = list()
 for f in files2:
+    print(f)
     list = f.split("-")
     sample = list[0] + "-" + list[1]
     bam_samples.append(sample)

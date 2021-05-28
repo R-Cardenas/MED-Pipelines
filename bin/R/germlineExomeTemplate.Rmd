@@ -1,0 +1,179 @@
+---
+title: "germlineTemplate.Rmd"
+author: "Ryan"
+date: "25/05/2021"
+output: html_document
+params:
+  genome: genome
+  index: index
+  bait: bait
+  target: target
+  GATK_db: GATK_db
+  GATK_1000G: GATK_1000G
+  GATK_mills: GATK_mills
+  FB_filter: FB_filter
+  GATK_filter: GATK_filter
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(DT)
+library(GenomicRanges)
+library(biomaRt)
+library(gprofiler2)
+
+```
+
+# Introduction
+
+<br />
+
+This report utilises the MED-genomics pipelines (https://github.com/R-Cardenas/MED-Pipelines), specifically the Exome-germline pipelines. 
+
+For this project we have utilised the follow pipelines:
+
+- cgpMAP Exome Pipelines (+QC)
+- Freebayes (+filtering)
+- GATK haploypeCaller (+filtering)
+- Variant Processing (allele frequency and deleteriousness annotation)
+
+This report outlines the methodology used and presents the results.
+
+<br />
+
+# Methods 
+
+### cgpMAP Pipeline
+
+The first pipeline automates the mapping and QC steps required for an Exome analysis, the following files were used:
+
+```{r, echo=FALSE, results= 'asis', warning=FALSE, message=FALSE}
+
+genome <- as.character(params$genome)
+print(genome)
+genome_index <- as.character(params$index)
+print(genome_index)
+exome_bait <- as.character(params$bait)
+print(exome_bait)
+exome_target <- as.character(params$target)
+print(exome_target)
+
+
+```
+
+### Freebayes Pipeline
+
+The BAM files from the cgpMAP pipeline are processed by Freebayes and then filtered using the parameted shown below:
+
+- QUAL > 5 (quality score > 5)
+- INFO/DP>5 (read depth > 5)
+- SAF > 0 (Number of alternate observations on the forward strand)
+- SAR > 0 (Number of alternate observations on the reverse strand)
+- RPR > 1 (Number of Reads Placed Right of)
+- RPL > 1 (Number of Reads Placed Light of)
+
+### GATK Pipeline
+
+The BAM files from the cgpMAP pipeline are processed by GATK BaseRecalibrator and HaplotypeCaller using the following input files:
+
+```{r, echo=FALSE, results= 'asis', warning=FALSE, message=FALSE}
+
+GATK_db <- as.character(params$GATK_db)
+print(GATK_db)
+GATK_1000G <- as.character(params$GATK_1000G)
+print(GATK_1000G)
+GATK_mills <- as.character(params$GATK_mills)
+print(GATK_mills)
+
+```
+
+Following variant calling, VCFs were scored using CNNScoreVariants and filtered using FilterVariantTranches (CNN_1D, snp-tranche 99.95 and indel-tranche 99.4).
+
+### Overlap FreeBayes and GATK
+
+Following variant calling from two independent tools, we next overlap the results from both to give a consensus. This is done seperately for SNPs and Indels. SNPs are required to be identicial between both variantcallers, whereas indels only require a 10% overlap to be considered an overlap. This approach was used as indels are difficult to identify and different variant callers will differ in size slightly.
+
+### VCF annotation
+
+Annotation was performed using Ensembls' VEP using adding all 'usual' parameters (--everything) in addition to the the following annotations:
+
+- 1000 genomes
+- GnomAD
+- Conservation (PhastCons 7 ways)
+- SIFT
+- PolyPhen
+
+
+# Results 
+
+### Variant Caller Filters
+
+Once variants have been called, they next are required to be filtered. Here we show the number of variants before and after filtration for both Freebayes and HaplotypeCaller pipelines.
+
+```{r, echo=FALSE, results= 'asis', warning=FALSE, message=FALSE}
+
+# Load in files from terminal
+FB_unfiltered <- list.files(path=params$FB_filter, pattern = '*.unfiltered.count',full.names = T)
+FB_filtered <- list.files(path=params$FB_filter, pattern = '*.filtered.count',full.names = T)
+GATK_unfiltered <- list.files(path=params$GATK_filter, pattern = '*.unfiltered.count',full.names = T)
+print(GATK_unfiltered)
+GATK_filtered <- list.files(path=params$GATK_filter, pattern = '*.filtered.count',full.names = T)
+
+# make unfiltered data frame
+FB_unfiltered_df <- data_frame(filenames = FB_unfiltered) %>%
+  mutate(file_contents = map(filenames, 
+                             ~read_table2(.,col_names=FALSE))) %>%
+  unnest() %>%
+  mutate(filenames = basename(filenames)) %>%
+  mutate(variantCaller = "Freebayes") %>%
+  mutate(filtered = "unfiltered")
+
+GATK_unfiltered_df <- data_frame(filenames = GATK_unfiltered) %>%
+  mutate(file_contents = map(filenames, 
+                             ~read_table2(.,col_names=FALSE))) %>%
+  unnest() %>%
+  mutate(filenames = basename(filenames)) %>%
+  mutate(variantCaller = "GATK") %>%
+  mutate(filtered = "unfiltered")
+
+# make filtered data frame
+FB_filtered_df <- data_frame(filenames = FB_filtered) %>%
+  mutate(file_contents = map(filenames, 
+                             ~read_table2(.,col_names=FALSE))) %>%
+  unnest() %>%
+  mutate(filenames = basename(filenames)) %>%
+  mutate(variantCaller = "Freebayes") %>%
+  mutate(filtered = "filtered")
+
+GATK_filtered_df <- data_frame(filenames = GATK_unfiltered) %>%
+  mutate(file_contents = map(filenames, 
+                             ~read_table2(.,col_names=FALSE))) %>%
+  unnest() %>%
+  mutate(filenames = basename(filenames)) %>%
+  mutate(variantCaller = "GATK") %>%
+  mutate(filtered = "filtered")
+
+merge_df <- rbind(FB_unfiltered_df,FB_filtered_df,GATK_unfiltered_df,GATK_filtered_df) %>%
+  as.data.frame() %>%
+  dplyr::rename(n = X1) %>%
+  dplyr::rename(variant_type = X2) %>%
+  group_by(variantCaller,variant_type,filtered) %>%
+  dplyr::summarise(sum_n = sum(n)) %>%
+  dplyr::select(c(variantCaller,filtered,variant_type,sum_n)) %>%
+  arrange(desc(filtered)) %>%
+  dplyr::rename(`Variant caller` = variantCaller) %>%
+  dplyr::rename(`Variant type` = variant_type) %>%
+  dplyr::rename(` ` = filtered) %>%
+  dplyr::rename(N = sum_n) %>%
+  mutate(`Variant type` = str_split(`Variant type`,pattern = "=")[[1]][2])
+datatable(merge_df, class = 'cell-border stripe')
+
+```
+
+
+### VariantCaller/Family overlaps
+
+In this step we overlapped variants common in Freebayes and Haplotypecaller pipelines. Following this we performed overlaps between family members.
+
+

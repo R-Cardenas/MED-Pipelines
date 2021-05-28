@@ -8,6 +8,7 @@ vcf_ch.into { vcf1_ch; vcf2_ch }
 process merge_caller_indels {
   errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
+	executor 'local'
   storeDir "$baseDir/output/VCF_collect/merge_vcf/indels/caller"
   input:
   file vcf from vcf2_ch.collect()
@@ -29,7 +30,8 @@ process merge_caller_indels {
 }
 
 process count_variants{
-	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+  errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
 	executor 'local'
   storeDir "$baseDir/output/variant_counts/indels/caller_merge"
   input:
@@ -47,6 +49,7 @@ process count_variants{
 process merge_family_indels {
   errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
+	executor 'local'
   storeDir "$baseDir/output/VCF_collect/merge_vcf/indels/family"
   input:
   file vcf from fam_ch.collect()
@@ -70,8 +73,7 @@ process merge_family_indels {
 process indels_filter {
   errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
-  memory { 7.GB * task.attempt }
-  executor 'slurm'
+	executor 'local'
   storeDir "$baseDir/output/VCF_collect/merge_vcf/indels/family/filter"
   input:
   file vcf from indels_filter_ch.flatten()
@@ -84,7 +86,8 @@ process indels_filter {
 }
 
 process count_variants2{
-	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+  errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
 	executor 'local'
   storeDir "$baseDir/output/variant_counts/indels/family_merge"
   input:
@@ -102,6 +105,7 @@ process count_variants2{
 process indels_sort {
   errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
+	executor 'local'
   storeDir "$baseDir/output/VCF_collect/merge_vcf/indels/family/filter"
   input:
   file vcf from indels_sort_ch
@@ -120,11 +124,11 @@ process VEP {
   memory { 7.GB * task.attempt }
   errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
-  storeDir "$baseDir/output/VCF_collect/VEP"
+  storeDir "$baseDir/output/VCF_collect/VEP/vcf"
   input:
   file vcf from vep_ch.flatten()
   output:
-  file "${vcf.baseName}_VEP.vcf"
+  file "${vcf.baseName}_VEP.vcf" into vepIndel_ch
   script:
   """
   vep -i ${vcf} \
@@ -153,9 +157,37 @@ process VEP {
   """
 }
 
+process vcf2tsv {
+  errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
+  storeDir "$baseDir/output/VCF_collect/VEP/tsv/indels"
+  input:
+  file vcf from vepIndel_ch
+  output:
+  file "${vcf.simpleName}.tsv" into tsvF_ch
+  script:
+  """
+  Rscript $baseDir/bin/R/vcf2tsv.R -v $vcf -o ${vcf.simpleName}.tsv
+  """
+}
+
+
+process tsvFilter {
+  errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
+  storeDir "$baseDir/output/VCF_collect/VEP/tsv/indels"
+  input:
+  file vcf from tsvF_ch.collect()
+  output:
+  file "ALL_data_indels.csv" into md2_ch
+  script:
+  """
+  Rscript $baseDir/bin/R/filterVariantIndels.R -a 0.05
+  """
+}
+
 
 // and VEP_fasta added
-// use pipeline bundle 1 has python3 installed
 process merge_caller_snps {
   errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
@@ -184,8 +216,10 @@ process merge_caller_snps {
 }
 
 process count_variants3{
-	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+  errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
 	executor 'local'
+	memory { 7.GB * task.attempt }
   storeDir "$baseDir/output/variant_counts/snps/caller_merge"
   input:
 	file vcf from count3_ch.flatten()
@@ -203,6 +237,8 @@ process count_variants3{
 process merge_fam_snps{
   errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
+	executor 'local'
+	memory { 7.GB * task.attempt }
   storeDir "$baseDir/output/VCF_collect/merge_vcf/snps/family"
   input:
   file vcf from snps_fam_ch.collect()
@@ -234,6 +270,8 @@ process merge_fam_snps{
 process snps_filter {
   errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
+	executor 'local'
+	memory { 7.GB * task.attempt }
   storeDir "$baseDir/output/VCF_collect/merge_vcf/snps/family/filtered"
   input:
   file vcf from snps_filter_ch.flatten()
@@ -246,6 +284,8 @@ process snps_filter {
 }
 
 process count_variants4{
+  errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
 	executor 'local'
 	memory { 7.GB * task.attempt }
   storeDir "$baseDir/output/variant_counts/snps/family_merge"
@@ -285,11 +325,11 @@ process VEP2 {
 	clusterOptions '--qos=hmem'
 	queue 'hmem-512'
 	memory { 30.GB * task.attempt }
-  storeDir "$baseDir/output/VCF_collect/VEP"
+  storeDir "$baseDir/output/VCF_collect/VEP/vcf"
   input:
   file vcf from vep2_ch.flatten()
   output:
-  file "${vcf.baseName}_VEP.vcf"
+  file "${vcf.baseName}_VEP.vcf" into vepSnp_ch
   script:
   """
   vep -i ${vcf} \
@@ -317,6 +357,61 @@ process VEP2 {
   --force_overwrite
   """
 }
+
+process vcf2tsv2 {
+  errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
+  storeDir "$baseDir/output/VCF_collect/VEP/tsv/snps"
+  input:
+  file vcf from vepSnp_ch
+  output:
+  file "${vcf.simpleName}.tsv" into tsvF_ch2
+  script:
+  """
+  Rscript $baseDir/bin/R/vcf2tsv.R -v $vcf -o ${vcf.simpleName}.tsv
+  """
+}
+
+process tsvFilter2 {
+  errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
+  storeDir "$baseDir/output/VCF_collect/VEP/tsv/snps"
+  input:
+  file vcf from tsvF_ch2.collect()
+  output:
+  file "ALL_data_snvs.csv" into md1_ch
+  script:
+  """
+  Rscript $baseDir/bin/R/filterVariantSNPs.R -a 0.05
+  """
+}
+
+
+process markdown {
+//  errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+//	maxRetries 6
+  storeDir "$baseDir/output/markdown"
+  input:
+  file vcf from md1_ch.collect()
+  file vcf from md2_ch.collect()
+  output:
+  val "$baseDir/output/markdown/${projectname}_report.html"
+  script:
+  """
+  Rscript -e 'rmarkdown::render("$baseDir/bin/R/germlineExomeTemplate.Rmd",
+  output_file="$baseDir/output/markdown/${projectname}_report.html",
+  params = list(genome = "$cgpmap_genome",
+  index = "$cgpmap_index",
+  bait = "$bait_interval",
+  target = "$target_interval",
+  GATK_db = "$GATK_dbsnp138",
+  GATK_1000G = "$GATK_1000G",
+  GATK_mills = "$GATK_mills",
+  FB_filter = "$baseDir/output/variant_counts/freebayes/",
+  GATK_filter = "$baseDir/output/variant_counts/GATK/"))'
+  """
+}
+
 
 
 process Rtables {

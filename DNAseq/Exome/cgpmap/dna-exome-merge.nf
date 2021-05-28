@@ -106,14 +106,14 @@ process cgpMAP {
   executor 'slurm'
 	clusterOptions '--qos=hmem'
 	queue 'hmem-512'
-	memory '70 GB'
+	memory { 30.GB * task.attempt }
 	storeDir "$baseDir/output/cgpMAP/${read1.simpleName}"
   input:
 	val read1 from read5_ch
 	val read2 from read10_ch
 	file yaml from yaml_ch.collect()
   output:
-  file "*.bam" into cgp_ch
+  file "${read1.simpleName}.bam" into cgp_ch
   script:
   """
 
@@ -127,6 +127,7 @@ process cgpMAP {
   -outdir $baseDir/output/cgpMAP/${read1.simpleName} \
   -r $cgpmap_genome \
   -i $cgpmap_index \
+  -t 10 \
   -s \$name \
 	-g \$BaseName.yaml \
   ${read1} ${read2}
@@ -145,6 +146,7 @@ process sam_sort {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 7
   storeDir "$baseDir/output/BAM/sorted"
+  memory { 6.GB * task.attempt }
   input:
   file bam from cgp_ch
   output:
@@ -161,6 +163,8 @@ process sam_sort {
 
 // dont forget to add singularity with python3 installed
 process bam_merge {
+  executor 'slurm'
+  memory { 20.GB * task.attempt }
   storeDir "$baseDir/output/BAM/merge"
   input:
   file bam from bam_merge_ch.collect()
@@ -195,6 +199,7 @@ process picard_pcr_removal {
 process bam_index {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 7
+  memory { 6.GB * task.attempt }
 	storeDir "$baseDir/output/BAM/merge/RMD"
   input:
   file bam from index1_ch
@@ -216,6 +221,7 @@ process bam_index {
 process hybrid_stats {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 7
+  memory { 6.GB * task.attempt }
 	storeDir "$baseDir/output/BAM/hybrid_stats"
   input:
   file bam from hs_ch
@@ -252,6 +258,7 @@ process hybrid_stats {
 process alignment_stats{
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 7
+  memory { 6.GB * task.attempt }
 	storeDir "$baseDir/output/BAM/alignment_stats"
 	input:
 	file bam from bam10_ch
@@ -272,12 +279,12 @@ process alignment_stats{
 process verifybamid{
   errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 7
-	cpus 5
+	cpus 3
   executor 'slurm'
 	clusterOptions '--qos=hmem'
 	queue 'hmem-512'
-	memory '70 GB'
-	stageInMode = 'copy' // somalier doesnt like sym/hardlinks.
+	memory '80 GB'
+//	stageInMode = 'copy' // somalier doesnt like sym/hardlinks.
 	storeDir "$baseDir/output/BAM/verifyBamID"
 	input:
 	file bam from bam11_ch
@@ -287,7 +294,7 @@ process verifybamid{
 	file "${bam.simpleName}.selfSM" into con_ch
 	script:
 	"""
-	verifyBamID --vcf $verifybamid \
+  verifyBamID --vcf $verifybamid \
 	--bam ${bam} \
 	--out ${bam.simpleName} \
 	--maxDepth 1000 \
@@ -300,10 +307,13 @@ process verifybamid{
 	"""
 }
 
-
-
 process somalier{
-	stageInMode = 'copy' // somalier doesnt like sym/hardlinks.
+  errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 7
+  executor 'slurm'
+	clusterOptions '--qos=hmem'
+	queue 'hmem-512'
+	memory { 70.GB * task.attempt }
   storeDir "$baseDir/output/BAM/somalier"
   input:
   file bam from bam12_ch.collect()
@@ -315,10 +325,9 @@ process somalier{
 	python $baseDir/bin/python/PED_file.py --bam '$bam'
 
 	mkdir -p bin
-	wget -P bin/ https://github.com/brentp/somalier/files/3412456/sites.hg38.vcf.gz
 
 	for f in *.bam; do
-    /somalier:v0.2.11/somalier extract -d extracted/ --sites bin/sites.hg38.vcf.gz -f $genome_fasta \$f
+    /somalier:v0.2.11/somalier extract -d extracted/ --sites $somalier -f $genome_fasta \$f
 	done
 
 	/somalier:v0.2.11/somalier relate --ped project.PED  extracted/*.somalier
@@ -336,6 +345,8 @@ process somalier{
 }
 
 process multiqc{
+  errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+  maxRetries 7
 	executor 'slurm'
 	storeDir "$baseDir/output/multiqc"
 	input:
