@@ -63,8 +63,8 @@ for f in unique:
 
         cmd = f"""
         bedtools intersect \
-        -a {selected_files[1]} \
-        -b {selected_files[0]} \
+        -a {selected_files[0]} \
+        -b {selected_files[1]} \
         -f 0.10 -F 0.10 -wa -header \
         > {outputname2} """
         print(cmd)
@@ -96,8 +96,8 @@ for f in unique:
             else:
                 cmd = f"""
                 bedtools intersect \
-                -a {selected_files[1]} \
-                -b {selected_files[0]} \
+                -a {selected_files[0]} \
+                -b {selected_files[1]} \
                 -f 0.10 -F 0.10 -wa -header \
                 > {outputname2} """
                 print(cmd)

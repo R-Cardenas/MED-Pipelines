@@ -15,7 +15,7 @@ def strip(x):
     return y
 
 
-################################################
+################################################ 
 # set args parse to allow input from terminal  #
 ################################################
 
@@ -54,7 +54,7 @@ if normal[0] == tumor[0]:
 else:
     SyntaxError("Sample names for Tumor and Normal samples are different please revise")
 # create output name
-final_name = tumor[0] + '-unfiltered-GATK.vcf.gz' 
+final_name = tumor[0] + '-unfiltered-GATK.vcf.gz'
 
 ##########################
 # Mutect2 command to run #

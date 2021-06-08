@@ -1,4 +1,4 @@
-#!/usr/bin/env Rscript
+  #!/usr/bin/env Rscript
 # Script for germlinePipeline RPC 200521
 # Will exctract the vcf count file produced by vcf-annotate (vcftools)
 
@@ -51,6 +51,7 @@ df <- data_frame(filenames = files) %>%
                              ~read_table2(.,col_names=FALSE))) %>%
   unnest() %>%
   mutate(filenames = basename(filenames)) %>%
+  mutate(filenames = str_extract(filenames,".*(?=-)")) %>%
   mutate(variantCaller = variantcaller) %>%
   mutate(filtered = filtered) %>%
   rename(n = X1) %>%

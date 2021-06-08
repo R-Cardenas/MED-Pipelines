@@ -13,6 +13,10 @@ params:
   GATK_mills: GATK_mills
   FB_filter: FB_filter
   GATK_filter: GATK_filter
+  CallerOverlap: CallerOverlap
+  FamilyOverlap: FamilyOverlap
+  FilterSNPs: FilterSNPs
+  FilterIndels: FilterIndels
 ---
 
 ```{r setup, include=FALSE}
@@ -22,8 +26,10 @@ library(DT)
 library(GenomicRanges)
 library(biomaRt)
 library(gprofiler2)
+library(kableExtra)
 
 ```
+
 
 # Introduction
 
@@ -46,25 +52,45 @@ This report outlines the methodology used and presents the results.
 
 ### cgpMAP Pipeline
 
-The first pipeline automates the mapping and QC steps required for an Exome analysis, the following files were used:
+```{r class.source="watch-out",class.output="watch-out", echo=FALSE, warning=FALSE, message=FALSE}
 
-```{r, echo=FALSE, results= 'asis', warning=FALSE, message=FALSE}
-
-genome <- as.character(params$genome)
-print(genome)
-genome_index <- as.character(params$index)
-print(genome_index)
-exome_bait <- as.character(params$bait)
-print(exome_bait)
-exome_target <- as.character(params$target)
-print(exome_target)
-
-
+genome <- basename(params$genome)
+genome_index <- basename(params$index)
+exome_bait <- basename(params$bait)
+exome_target <- basename(params$target)
 ```
+<br />
+
+The first pipeline automates the mapping and QC steps required for an Exome analysis. This pipeline utilised Sanger's cgpMAP in combination with a number of QC steps:
+
+<br />
+
+- Picard PCR removal
+- Picard hybridisation statistics (Exome only)
+- Picard Alignment statistics
+- VerifyBamID
+- Somalier
+
+<br />
+
+The following input files were used:
+
+<br />
+
+- genome: `r genome`
+- genome index: `r genome_index`
+- exome bait: `r exome_bait`
+- exome target: `r exome_target`
+
+<br />
+<br />
+
 
 ### Freebayes Pipeline
 
-The BAM files from the cgpMAP pipeline are processed by Freebayes and then filtered using the parameted shown below:
+<br />
+
+The BAM files from the cgpMAP pipeline are processed by Freebayes and then filtered using the parameters shown below:
 
 - QUAL > 5 (quality score > 5)
 - INFO/DP>5 (read depth > 5)
@@ -73,26 +99,40 @@ The BAM files from the cgpMAP pipeline are processed by Freebayes and then filte
 - RPR > 1 (Number of Reads Placed Right of)
 - RPL > 1 (Number of Reads Placed Light of)
 
+<br />
+
 ### GATK Pipeline
 
-The BAM files from the cgpMAP pipeline are processed by GATK BaseRecalibrator and HaplotypeCaller using the following input files:
+<br />
 
 ```{r, echo=FALSE, results= 'asis', warning=FALSE, message=FALSE}
 
-GATK_db <- as.character(params$GATK_db)
-print(GATK_db)
-GATK_1000G <- as.character(params$GATK_1000G)
-print(GATK_1000G)
-GATK_mills <- as.character(params$GATK_mills)
-print(GATK_mills)
+GATK_db <- basename(params$GATK_db)
+
+GATK_1000G <- basename(params$GATK_1000G)
+
+GATK_mills <- basename(params$GATK_mills)
+
 
 ```
 
+<br />
+
+The BAM files from the cgpMAP pipeline are processed by GATK BaseRecalibrator and HaplotypeCaller. The GATK reference database for known variant sites were used:
+
+- `r GATK_db`
+- `r GATK_1000G`
+- `r GATK_mills`
+
 Following variant calling, VCFs were scored using CNNScoreVariants and filtered using FilterVariantTranches (CNN_1D, snp-tranche 99.95 and indel-tranche 99.4).
+
+<br />
 
 ### Overlap FreeBayes and GATK
 
 Following variant calling from two independent tools, we next overlap the results from both to give a consensus. This is done seperately for SNPs and Indels. SNPs are required to be identicial between both variantcallers, whereas indels only require a 10% overlap to be considered an overlap. This approach was used as indels are difficult to identify and different variant callers will differ in size slightly.
+
+<br />
 
 ### VCF annotation
 
@@ -104,10 +144,11 @@ Annotation was performed using Ensembls' VEP using adding all 'usual' parameters
 - SIFT
 - PolyPhen
 
+<br />
 
 # Results 
 
-### Variant Caller Filters
+### Variant Caller filters
 
 Once variants have been called, they next are required to be filtered. Here we show the number of variants before and after filtration for both Freebayes and HaplotypeCaller pipelines.
 
@@ -117,7 +158,6 @@ Once variants have been called, they next are required to be filtered. Here we s
 FB_unfiltered <- list.files(path=params$FB_filter, pattern = '*.unfiltered.count',full.names = T)
 FB_filtered <- list.files(path=params$FB_filter, pattern = '*.filtered.count',full.names = T)
 GATK_unfiltered <- list.files(path=params$GATK_filter, pattern = '*.unfiltered.count',full.names = T)
-print(GATK_unfiltered)
 GATK_filtered <- list.files(path=params$GATK_filter, pattern = '*.filtered.count',full.names = T)
 
 # make unfiltered data frame
@@ -167,13 +207,105 @@ merge_df <- rbind(FB_unfiltered_df,FB_filtered_df,GATK_unfiltered_df,GATK_filter
   dplyr::rename(` ` = filtered) %>%
   dplyr::rename(N = sum_n) %>%
   mutate(`Variant type` = str_split(`Variant type`,pattern = "=")[[1]][2])
-datatable(merge_df, class = 'cell-border stripe')
+
+merge_df %>%
+  kbl(table.attr = "style='width:40%;'") %>% 
+  collapse_rows(columns = 1:2) %>%
+  kable_paper("striped", full_width = FALSE)
 
 ```
 
 
-### VariantCaller/Family overlaps
+### VariantCaller overlaps
 
 In this step we overlapped variants common in Freebayes and Haplotypecaller pipelines. Following this we performed overlaps between family members.
 
+```{r, echo=FALSE, results= 'asis', warning=FALSE, message=FALSE}
+
+
+#---------------------- load caller overlap files ---------------------------------##
+
+
+callerOverlap <- read_csv(params$CallerOverlap) %>% #input the params from terminal
+  dplyr::mutate(`Variant caller` = "Freebayes GATK overlap") %>%
+  dplyr::rename(`Variant type` = type2) %>%
+  dplyr::group_by(`Variant caller`,`Variant type`) %>%
+  dplyr::summarise(N = sum(n)) %>%
+  dplyr::mutate(` ` = "NA") 
+
+callerOverlap %>%
+  knitr::kable() %>% 
+  collapse_rows(columns = 1:2) %>%
+  kable_paper("striped", full_width = FALSE)
+
+
+
+```
+
+
+### Family overlaps
+
+In this step we overlapped variants common in across family members.
+
+```{r, echo=FALSE, results= 'asis', warning=FALSE, message=FALSE}
+
+
+#---------------------- load caller overlap files ---------------------------------##
+
+
+callerOverlap <- read_csv(params$FamilyOverlap) %>% #input the params from terminal
+  dplyr::mutate(`Variant caller` = "Family GATK overlap") %>%
+  dplyr::rename(`Variant type` = type2) %>%
+  dplyr::group_by(`Variant caller`,`Variant type`) %>%
+  dplyr::summarise(N = sum(n)) %>%
+  dplyr::mutate(` ` = "NA") 
+
+callerOverlap %>%
+  knitr::kable() %>% 
+  collapse_rows(columns = 1:2) %>%
+  kable_paper("striped", full_width = FALSE)
+
+
+
+```
+
+### Variant DataTables {.tabset}
+
+#### SNPs 
+
+
+```{r, echo=FALSE, results= 'asis', warning=FALSE, message=FALSE}
+
+#---------------------- load caller overlap files ---------------------------------##
+
+ALL_snps <- read_csv(params$FilterSNPs) %>%
+  distinct()
+
+datatable(ALL_snps, extensions = 'Buttons',filter='top',
+          options = list(dom = 'Bfrtip', 
+                         buttons = list(I('colvis'),c('copy', 'csv', 'excel', 'pdf', 'print')),
+                         lengthMenu = c(5, 10, 15, 20), scrollX = T))
+
+
+```
+
+
+#### Variants Indels 
+
+Following family overlap, th
+
+```{r, echo=FALSE, results= 'asis', warning=FALSE, message=FALSE}
+
+#---------------------- load caller overlap files ---------------------------------##
+
+ALL_snps <- read_csv(params$FilterIndels) %>%
+  distinct()
+
+datatable(ALL_snps, extensions = 'Buttons',filter='top',
+          options = list(dom = 'Bfrtip', 
+                         buttons = list(I('colvis'),c('copy', 'csv', 'excel', 'pdf', 'print')),
+                         lengthMenu = c(5, 10, 15, 20), scrollX = T))
+
+
+```
 

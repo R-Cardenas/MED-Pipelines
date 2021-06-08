@@ -1,5 +1,3 @@
-params.tumor = ["PD13382a.cram","PD13389a.cram","PD13399a.cram"]
-params.normal = ["PD13382b.cram","PD13389b.cram","PD13399b.cram"]
 
 /*
  * create a channel for bam files produced by cgpmap_processing pipeline
@@ -79,6 +77,7 @@ process mutect2 {
   -I ${x}.bam \
   -I ${y}.bam \
   -normal ${y}.bam \
+	--intervals ${target_interval} \
   --germline-resource $Mutect2_germline \
   --panel-of-normals $Mutect2_PoN \
   -O ${x}vs${y}.vcf.gz
@@ -95,6 +94,7 @@ process pileup_summary{
 	"""
 	gatk GetPileupSummaries \
 	-I ${bam} \
+	--intervals ${target_interval} \
 	-V $Mutect2_germline \
 	-O ${bam.simpleName}.getpileupsummaries.table
 	"""

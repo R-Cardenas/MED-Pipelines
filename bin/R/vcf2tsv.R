@@ -30,24 +30,24 @@ vcf2tab <- function(vcf_path){
   print(vcf_path)
   vcf <- readVcf(vcf_path, "hg38")
   vcf2 <- vcf %>%
-    unique() 
-  
-  # convert VEP CSQ to GRange 
+    unique()
+
+  # convert VEP CSQ to GRange
   csq <- parseCSQToGRanges(vcf2) %>%
     unique() %>%
     as.data.frame() %>%
     rownames_to_column()
-  
-  
+
+
   # Extract the VCF INFO field out
   vcf_info <- info(vcf2)
   vcf_info2 <- cbind(vcf_info@rownames,as.data.frame(vcf_info)) %>%
     dplyr::rename(rowname = "vcf_info@rownames") %>%
     dplyr::select(-CSQ)
-  
+
   # Merge the FORMAT and INFO
   vcf_df <- inner_join(vcf_info2,csq,by="rowname")
-  
+
   # Extract filename from variable and add to df
   filename <- path_file(vcf_path)
   filename2 <- paste0(filename,".tsv")
@@ -55,13 +55,19 @@ vcf2tab <- function(vcf_path){
     mutate(filenames = filename) %>%
     mutate(family_ID = str_split(filenames, "-")[[1]][2])  %>% # extract family
     mutate(sample_ID = str_split(filenames, "-")[[1]][1]) # extract the samples name
-  
+
   vcf_df2 <- vcf_df1 %>%
     as.data.frame() %>%
     unnest(cols = c(AF.x, AC)) %>%
     type_convert() %>%
     dplyr::select("seqnames",
                   "start",
+                  contains("gnomad"),
+                  contains("topmed"),
+                  "gnomad_popmax_af",
+                  "genic",
+                  "impactful",
+                  "highest_impact_order",
                   "end",
                   "Consequence",
                   "IMPACT",
@@ -83,7 +89,6 @@ vcf2tab <- function(vcf_path){
                   "rowname",
                   "Existing_variation",
                   "CLIN_SIG",
-                  "PUBMED",
                   "Gene",
                   "rowname",
                   "Conservation.y")

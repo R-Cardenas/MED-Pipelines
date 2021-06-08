@@ -29,7 +29,7 @@ file_path_indels_ours <- data_frame(filenames = files_indels) %>%
   unnest() %>%
   mutate(samples = str_extract(filenames, "^.{10}")) %>%
   mutate(gnomAD_NFE_AF=replace(gnomAD_NFE_AF, gnomAD_NFE_AF=="-", NA)) %>%
-  type.convert() %>%
-  filter(gnomAD_NFE_AF <= af)
+  type.convert() #%>%
+#  filter(gnomAD_NFE_AF <= af)
 
 write_csv(file_path_indels_ours,path = "ALL_data_indels.csv",col_names = TRUE)

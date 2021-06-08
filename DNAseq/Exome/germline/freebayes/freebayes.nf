@@ -62,7 +62,7 @@ process vcf_filter{
 process count_variants{
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
-	memory { 7.GB * task.attempt }
+	executor 'local'
   storeDir "$baseDir/output/variant_counts/freebayes"
   input:
 	file vcf from count1_ch

@@ -1,8 +1,24 @@
 params.vcf= "$baseDir/output/VCF_collect/*.vcf.gz"
 
 vcf_ch = Channel. fromPath (params.vcf)
-vcf_ch.into { vcf1_ch; vcf2_ch }
+vcf_ch.into { vcf1_ch; vcf2_ch; vcf3_ch }
 
+//This is a fake PED of brentP
+process ped {
+  errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
+	executor 'local'
+  storeDir "$baseDir/output/VCF_collect/merge_vcf/indels/caller"
+  input:
+  file vcf from vcf3_ch.collect()
+  output:
+  file "project.PED" into (ped_ch,ped2_ch)
+  script:
+  """
+  module add python/anaconda/2020.07
+  python $baseDir/bin/python/PED_file.py --bam '$vcf'
+  """
+}
 
  // use pipeline bundle 1 has python3 installed
 process merge_caller_indels {
@@ -40,7 +56,9 @@ process count_variants{
   file "${vcf}.CallerMerge.indels.count" into sumCounts1_ch
   script:
   """
-  python $baseDir/bin/python/vcf_count.py --vcf $vcf --output ${vcf}.CallerMerge.indels.count1
+  bcftools view -O z -v indels ${vcf} > ${vcf.simpleName}.BCFTOOLS.TEMP.vcf.gz #removes non-indels for the count
+
+  python $baseDir/bin/python/vcf_count.py --vcf ${vcf.simpleName}.BCFTOOLS.TEMP.vcf.gz --output ${vcf}.CallerMerge.indels.count1
 
   grep -v 'snp' ${vcf}.CallerMerge.indels.count1 > ${vcf}.CallerMerge.indels.count
   """
@@ -157,12 +175,35 @@ process VEP {
   """
 }
 
+process slivar2 {
+  //errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	//maxRetries 6
+  storeDir "$baseDir/output/VCF_collect/VEP/slivar"
+  input:
+  file vcf from vepIndel_ch
+  file ped from ped2_ch
+  output:
+  file "${vcf.simpleName}.indels.slivar.vcf" into vepIndel2_ch
+  script:
+  """
+  slivar expr --js /var/spool/mail/slivar/slivar-functions.js \
+  -g /var/spool/mail/slivar/gnomad.hg38.v2.zip \
+  -g /var/spool/mail/slivar/topmed.hg38.dbsnp.151.zip \
+  --info 'INFO.impactful && INFO.gnomad_popmax_af < 0.1 && variant.FILTER == "PASS" && variant.ALT[0] != "*" && INFO.topmed_af < 0.1'\
+  --ped $ped \
+  --pass-only \
+  --vcf $vcf \
+  --out-vcf ${vcf.simpleName}.indels.slivar.vcf
+  """
+}
+
+
 process vcf2tsv {
   errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
   storeDir "$baseDir/output/VCF_collect/VEP/tsv/indels"
   input:
-  file vcf from vepIndel_ch
+  file vcf from vepIndel2_ch
   output:
   file "${vcf.simpleName}.tsv" into tsvF_ch
   script:
@@ -227,7 +268,9 @@ process count_variants3{
   file "${vcf}.CallerMerge.snps.count" into sumCounts3_ch
   script:
   """
-	python $baseDir/bin/python/vcf_count.py --vcf $vcf --output ${vcf}.CallerMerge.snps.count1
+  bcftools view -O z -V indels ${vcf} > ${vcf.simpleName}.BCFTOOLS.TMP.snps.vcf.gz
+
+	python $baseDir/bin/python/vcf_count.py --vcf ${vcf.simpleName}.BCFTOOLS.TMP.snps.vcf.gz --output ${vcf}.CallerMerge.snps.count1
 
   grep 'snp' ${vcf}.CallerMerge.snps.count1 > ${vcf}.CallerMerge.snps.count
   """
@@ -358,12 +401,35 @@ process VEP2 {
   """
 }
 
+process slivar {
+  //errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	//maxRetries 6
+  storeDir "$baseDir/output/VCF_collect/VEP/slivar"
+  input:
+  file vcf from vepSnp_ch
+  file ped from ped_ch
+  output:
+  file "${vcf.simpleName}.snps.slivar.vcf" into vepSnp2_ch
+  script:
+  """
+  slivar expr --js /var/spool/mail/slivar/slivar-functions.js \
+  -g /var/spool/mail/slivar/gnomad.hg38.v2.zip \
+  -g /var/spool/mail/slivar/topmed.hg38.dbsnp.151.zip \
+  --info 'INFO.impactful && INFO.gnomad_popmax_af < 0.1 && variant.FILTER == "PASS" && variant.ALT[0] != "*" && INFO.topmed_af < 0.1'\
+  --ped $ped \
+  --pass-only \
+  --vcf $vcf \
+  --out-vcf ${vcf.simpleName}.snps.slivar.vcf
+  """
+}
+
+
 process vcf2tsv2 {
   errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
   storeDir "$baseDir/output/VCF_collect/VEP/tsv/snps"
   input:
-  file vcf from vepSnp_ch
+  file vcf from vepSnp2_ch
   output:
   file "${vcf.simpleName}.tsv" into tsvF_ch2
   script:
@@ -386,34 +452,6 @@ process tsvFilter2 {
   """
 }
 
-
-process markdown {
-//  errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-//	maxRetries 6
-  storeDir "$baseDir/output/markdown"
-  input:
-  file vcf from md1_ch.collect()
-  file vcf from md2_ch.collect()
-  output:
-  val "$baseDir/output/markdown/${projectname}_report.html"
-  script:
-  """
-  Rscript -e 'rmarkdown::render("$baseDir/bin/R/germlineExomeTemplate.Rmd",
-  output_file="$baseDir/output/markdown/${projectname}_report.html",
-  params = list(genome = "$cgpmap_genome",
-  index = "$cgpmap_index",
-  bait = "$bait_interval",
-  target = "$target_interval",
-  GATK_db = "$GATK_dbsnp138",
-  GATK_1000G = "$GATK_1000G",
-  GATK_mills = "$GATK_mills",
-  FB_filter = "$baseDir/output/variant_counts/freebayes/",
-  GATK_filter = "$baseDir/output/variant_counts/GATK/"))'
-  """
-}
-
-
-
 process Rtables {
 	executor 'local'
   storeDir "$baseDir/output/variant_counts/data"
@@ -435,10 +473,41 @@ process Rtables {
   Rscript $baseDir/bin/R/variantCounts.R -v "$snpF" -f NA -w "*.FamMerge.snps.count" -c NA -o Snps.FamilyOverlap.csv -O "Group/Family Overlap"
 
   # Merge the SNPs and Indels
-  tail -n +2 Indels.CallerOverlap.csv > Indels.CallerOverlap.csv
-  cat Snps.CallerOverlap.csv Indels.CallerOverlap.csv > CallerOverlapCount.csv
+  tail -n +2 Indels.CallerOverlap.csv > Indels.CallerOverlap2.csv
+  cat Snps.CallerOverlap.csv Indels.CallerOverlap2.csv > CallerOverlapCount.csv
 
-  tail -n +2 Indels.FamilyOverlap.csv > Indels.FamilyOverlap.csv
-  cat Snps.FamilyOverlap.csv Indels.FamilyOverlap.csv > FamilyOverlapCount.csv
+  tail -n +2 Indels.FamilyOverlap.csv > Indels.FamilyOverlap2.csv
+  cat Snps.FamilyOverlap.csv Indels.FamilyOverlap2.csv > FamilyOverlapCount.csv
+  """
+}
+
+
+process markdown {
+//  errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+//	maxRetries 6
+  input:
+  file vcf from md1_ch.collect()
+  file vcf2 from md2_ch.collect()
+  val count1 from r1_ch
+  val count2 from r2_ch
+  output:
+  val "$baseDir/output/markdown/${projectname}_report.html"
+  script:
+  """
+  mkdir -p $baseDir/output/markdown
+
+  Rscript -e 'rmarkdown::render("$baseDir/bin/R/germlineExomeTemplate.Rmd",
+  output_file="$baseDir/output/markdown/${projectname}_report.html",
+  params = list(genome = "$cgpmap_genome",
+  index = "$cgpmap_index",
+  bait = "$bait_interval",
+  target = "$target_interval",
+  GATK_db = "$GATK_dbsnp138",
+  GATK_1000G = "$GATK_1000G",
+  GATK_mills = "$GATK_mills",
+  FB_filter = "$baseDir/output/variant_counts/freebayes/",
+  GATK_filter = "$baseDir/output/variant_counts/GATK/",
+  CallerOverlap = "$count1",
+  FamilyOverlap = "$count2"))'
   """
 }

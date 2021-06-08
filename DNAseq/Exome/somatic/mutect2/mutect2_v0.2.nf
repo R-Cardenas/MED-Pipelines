@@ -37,10 +37,15 @@ process BaseRecalibrator {
   file bam from bam2_ch
   output:
   file "${bam.simpleName}.BQSR.bam" into (mutect2_1_ch,pileup_ch)
+	file "*.bai" into bai_ch
 	file "${bam}.table"
   script:
   """
 	mkdir -p tmp
+
+	gatk BuildBamIndex \
+	-I ${bam} \
+
   gatk BaseRecalibrator \
 	-I ${bam} \
   -R $genome_fasta \
@@ -63,23 +68,24 @@ process BaseRecalibrator {
 
 process mutect2 {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	maxRetries 7
+	maxRetries 3
   executor 'slurm'
 	clusterOptions '--qos=hmem'
 	queue 'hmem-512'
-	memory { 30.GB * task.attempt }
+	memory { 150.GB * task.attempt }
   storeDir "$baseDir/output/mutect2"
   input:
   val x from tumor_ch
   val y from normal_ch
   file bam from mutect2_1_ch.collect()
   output:
-  file "*-unfiltered-GATK.vcf.gz" into filter_vcf_ch 
+  file "*-unfiltered-GATK.vcf.gz" into (filter_vcf_ch, count1_ch)
   script:
   """
 	python $baseDir/bin/python/run_mutect2.py \
 	--tumor '${x}' \
 	--normal '${y}' \
+	--intervals ${target_interval} \
 	--germline '$Mutect2_germline' \
 	--PoN '$Mutect2_PoN' \
 	--ref '$genome_fasta'
@@ -88,11 +94,15 @@ process mutect2 {
 
 process pileup_summary{
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	maxRetries 6
-	memory { 7.GB * task.attempt }
+	maxRetries 3
+  executor 'slurm'
+	clusterOptions '--qos=hmem'
+	queue 'hmem-512'
+	memory { 150.GB * task.attempt }
   storeDir "$baseDir/output/mutect2/pileup"
 	input:
 	file bam from pileup_ch.flatten()
+	file bai from bai_ch
 	output:
 	file "${bam.simpleName}.getpileupsummaries.table" into contamination_ch
 	script:
@@ -100,6 +110,8 @@ process pileup_summary{
 	gatk GetPileupSummaries \
 	-I ${bam} \
 	-V $Mutect2_germline \
+	--create-output-bam-index \
+	--intervals ${target_interval} \
 	-L $Mutect2_germline \
 	-O ${bam.simpleName}.getpileupsummaries.table
 	"""
@@ -132,7 +144,7 @@ process filter_vcf {
 	file vcf from filter_vcf_ch
 	file table from filter_vcf2_ch
 	output:
-	file "${vcf.simpleName}_filtered-GATK.vcf" into zip_ch
+	file "${vcf.simpleName}_filtered-GATK.vcf" into (zip_ch,count2_ch)
 	script:
 	"""
 	gatk FilterMutectCalls \
@@ -141,6 +153,23 @@ process filter_vcf {
 	--contamination-table ${table} \
 	-O ${vcf.simpleName}.filtered.vcf
 	"""
+}
+
+process count_variants{
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
+	executor 'local'
+  storeDir "$baseDir/output/variant_counts/GATK"
+  input:
+	file vcf from count1_ch
+  file vcf2 from count2_ch
+  output:
+  file "*.count"
+  script:
+  """
+	python $baseDir/bin/python/vcf_count.py --vcf $vcf --output ${vcf}.unfiltered.count
+	python $baseDir/bin/python/vcf_count.py --vcf $vcf2 --output ${vcf2}.filtered.count
+  """
 }
 
 // needs samttools

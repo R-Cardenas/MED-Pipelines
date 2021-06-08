@@ -28,7 +28,8 @@ file_path_snps_ours <- data_frame(filenames = files) %>%
   unnest() %>%
   mutate(gnomAD_NFE_AF=replace(gnomAD_NFE_AF, gnomAD_NFE_AF=="-", NA)) %>%
   type.convert %>%
-  filter(gnomAD_NFE_AF <= af) %>%
-  mutate(samples = str_extract(filenames, "^.{10}"))
+  mutate(samples = str_extract(filenames, "^.{10}"))#%>%
+  #filter(gnomAD_NFE_AF <= af)
+
 
 write_csv(file_path_snps_ours,path = "ALL_data_snvs.csv",col_names = TRUE)

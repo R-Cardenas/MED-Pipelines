@@ -17,12 +17,12 @@ println """\
          .stripIndent()
 
 process cgpwxs2 {
-	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	maxRetries 7
+	//errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	//maxRetries 7
   executor 'slurm'
 	clusterOptions '--qos=hmem'
 	queue 'hmem-512'
-	memory { 30.GB * task.attempt }
+	memory 220.GB
 	storeDir "$baseDir/output/cgpwxs/${tumor}_vs_${normal}"
 	input:
 	val tumor from tumor_ch
@@ -31,25 +31,15 @@ process cgpwxs2 {
 	file "WXS_${tumor}_vs_${normal}.result.tar.gz" into untar_ch
 	script:
 	"""
-	rm -fr $baseDir/output/cgpwxs/${tumor}_vs_${normal} # during retry if file exist causes fail
-  mkdir -p $baseDir/output/cgpwxs/${tumor}_vs_${normal}
+	module add python/anaconda/2020.07
 
-	singularity exec --cleanenv \
+	python $baseDir/bin/python/run_cgpwxs.py \
 	--home $baseDir \
-	--bind /gpfs/afm/cg_pipelines/Pipelines/singularity/genomes:/var/spool/ref:ro \
-	--bind $baseDir/output/BAM/merge/RMD/:/var/spool/data:ro \
-	/gpfs/afm/cg_pipelines/Pipelines/singularity/images/cgpwxs_3.1.6.img \
-ds-cgpwxs.pl \
--reference $cgp_ref \
--annot $cgp_annot \
--snv_indel $cgp_snv_indel \
--tumour /var/spool/data/${tumor}*.bam \
--tidx /var/spool/data/${tumor}*.bam.bai \
--normal /var/spool/data/${normal}*.bam \
--nidx /var/spool/data/${normal}*.bam.bai \
--exclude NC_007605,hs37d5,GL% \
--outdir $baseDir/output/cgpwxs/${tumor}_vs_${normal} \
--sp "Homo sapiens" \
--assembly "GRCh37"
+	--tumor $tumor \
+	--normal $normal \
+	--annotation $cgp_annot \
+	--reference $cgpmap_genome \
+	--snv_indel $cgp_snv_indel
+
 	"""
 }

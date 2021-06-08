@@ -113,7 +113,7 @@ process cgpMAP {
 	val read2 from read10_ch
 	file yaml from yaml_ch.collect()
   output:
-  file "${read1.simpleName}.bam" into cgp_ch
+  file "${read1.simpleName}.bam" into bam_merge_ch
   script:
   """
 
@@ -142,25 +142,6 @@ process cgpMAP {
 }
 
 
-process sam_sort {
-	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	maxRetries 7
-  storeDir "$baseDir/output/BAM/sorted"
-  memory { 6.GB * task.attempt }
-  input:
-  file bam from cgp_ch
-  output:
-  file "${bam}.sorted.bam" into bam_merge_ch
-  script:
-  """
-	# create the tmp file as picard can create large temp files
-
-	mkdir -p tmp
-  picard SortSam I=${bam} O=${bam}.sorted.bam SORT_ORDER=coordinate TMP_DIR=tmp
-	rm -fr tmp
-  """
-}
-
 // dont forget to add singularity with python3 installed
 process bam_merge {
   executor 'slurm'
@@ -169,7 +150,7 @@ process bam_merge {
   input:
   file bam from bam_merge_ch.collect()
   output:
-	file "*-merged.bam" into dup_ch
+	file "*-merged.bam" into (index1_ch, hs_ch, bam10_ch, bam11_ch, bam12_ch)
   script:
   """
   module add python/anaconda/2020.07/3.8
@@ -178,23 +159,6 @@ process bam_merge {
   """
 }
 
-process picard_pcr_removal {
-	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	maxRetries 7
-	storeDir "$baseDir/output/BAM/merge/RMD"
-  input:
-  file bam from dup_ch.flatten()
-  output:
-  file "${bam.simpleName}.rmd.bam" into (index1_ch, hs_ch, bam10_ch, bam11_ch, bam12_ch)
-	file "${bam.simpleName}.log"
-  script:
-  """
-	mkdir -p tmp
-  picard MarkDuplicates I=${bam} O=${bam.simpleName}.rmd.bam M=${bam.simpleName}.log TMP_DIR=tmp
-	TMP_DIR=tmp
-	rm -fr tmp
-  """
-}
 
 process bam_index {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
@@ -202,7 +166,7 @@ process bam_index {
   memory { 6.GB * task.attempt }
 	storeDir "$baseDir/output/BAM/merge/RMD"
   input:
-  file bam from index1_ch
+  file bam from index1_ch.flatten()
   output:
   file "${bam}.bai" into (index_3ch, index_4ch)
 
@@ -224,7 +188,7 @@ process hybrid_stats {
   memory { 6.GB * task.attempt }
 	storeDir "$baseDir/output/BAM/hybrid_stats"
   input:
-  file bam from hs_ch
+  file bam from hs_ch.flatten()
   output:
   file "${bam.simpleName}_hs_metrics.txt"
   script:
@@ -261,7 +225,7 @@ process alignment_stats{
   memory { 6.GB * task.attempt }
 	storeDir "$baseDir/output/BAM/alignment_stats"
 	input:
-	file bam from bam10_ch
+	file bam from bam10_ch.flatten()
 	output:
 	file "${bam.simpleName}_align_stats.txt" into verify_ch
 	script:
@@ -287,7 +251,7 @@ process verifybamid{
 //	stageInMode = 'copy' // somalier doesnt like sym/hardlinks.
 	storeDir "$baseDir/output/BAM/verifyBamID"
 	input:
-	file bam from bam11_ch
+	file bam from bam11_ch.flatten()
 	file idx from index_3ch.collect()
 	output:
 	file "${bam.simpleName}.log"
