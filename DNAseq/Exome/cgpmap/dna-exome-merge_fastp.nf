@@ -21,32 +21,27 @@ println """
 
 
 process trim_galore{
-	afterScript "rm -fr ${reads[0]} ${reads[1]}"
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 7
 	stageInMode = 'copy' // trim_galore doesnt like sym/hardlinks.
   storeDir "$baseDir/output/trim_galore"
+  memory '45.GB'
 	input:
 	tuple val(read2), file(reads) from read2_ch
 	output:
-	file "${reads[0].simpleName}_1.trim.fq.gz" into (read5_ch, read7_ch)
-	file "${reads[0].simpleName}_2.trim.fq.gz" into (read10_ch, read12_ch)
-	file("*.html") optional true
+	file "${reads[0].simpleName}.fastp.fq.gz" into (read5_ch, read7_ch)
+	file "${reads[1].simpleName}.fastp.fq.gz" into (read10_ch, read12_ch)
+	file("*.json") optional true
 	script: {
 	"""
-	mkdir -p $baseDir/logs
+  #fastp -I ${reads[0]} -i ${reads[1]} \
+  #-O ${reads[0].simpleName}.fastp.fq.gz \
+  #-o ${reads[1].simpleName}.fastp.fq.gz
 
-	trim_galore --paired --fastqc --illumina \
-	--basename ${reads[0].simpleName} \
-	${reads[0]} ${reads[1]}
+  mv ${reads[0]} ${reads[0].simpleName}.fastp.fq.gz
+  mv ${reads[1]} ${reads[1].simpleName}.fastp.fq.gz
 
-	# rename val with trim
-	mv ${reads[0].simpleName}_val_1.fq.gz ${reads[0].simpleName}_1.trim.fq.gz
-	mv ${reads[0].simpleName}_val_2.fq.gz ${reads[0].simpleName}_2.trim.fq.gz
-
-	# delete copied files
-	rm -fr ${reads[0]} # remove the copied files to prevent memory loss
-	rm -fr ${reads[1]}
+  #mv fastp.json ${reads[0].simpleName}.fastp.json
 	"""
 }
 }
@@ -101,23 +96,23 @@ process fqtools{
 }
 
 process cgpMAP {
-	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	maxRetries 3
+	//errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	//maxRetries 3
   executor 'slurm'
 	clusterOptions '--qos=hmem'
 	queue 'hmem-512'
-	memory { 130.GB * task.attempt }
+	memory { 70.GB * task.attempt }
 	storeDir "$baseDir/output/cgpMAP/${read1.simpleName}"
   input:
 	val read1 from read5_ch
 	val read2 from read10_ch
 	file yaml from yaml_ch.collect()
   output:
-  file "${read1.simpleName}.bam" into cgp_ch
+  file "*.bam" into cgp_ch
   script:
   """
 
-	rm -fr $baseDir/output/cgpMAP/${read1.simpleName} # delete and remake path in case of retry pipeline
+  rm -fr $baseDir/output/cgpMAP/${read1.simpleName} # delete and remake path in case of retry pipeline
 	mkdir -p $baseDir/output/cgpMAP/${read1.simpleName}
 
   name=\$(echo '${read2}' | sed -e 's/.*[/]//' -e 's/-.*//')
@@ -132,12 +127,12 @@ process cgpMAP {
 	-g \$BaseName.yaml \
   ${read1} ${read2}
 
-	mv $baseDir/output/cgpMAP/${read1.simpleName}/*.bam \
-	$baseDir/output/cgpMAP/${read1.simpleName}/${read1.simpleName}.bam
+	#mv $baseDir/output/cgpMAP/${read1.simpleName}/*.bam \
+	#$baseDir/output/cgpMAP/${read1.simpleName}/${read1.simpleName}.bam
 
-	echo 'fq1: ${read1} fq2: ${read2} bam_name: ${read1.simpleName}' >> $baseDir/logs/${projectname}_cgpmap_samples.log
-	ls -l  ${read1} >> $baseDir/logs/symbolic_test_fastq.log
-	ls -l  ${read2} >> $baseDir/logs/symbolic_test_fastq.log
+	#echo 'fq1: ${read1} fq2: ${read2} bam_name: ${read1.simpleName}' >> $baseDir/logs/${projectname}_cgpmap_samples.log
+	#ls -l  ${read1} >> $baseDir/logs/symbolic_test_fastq.log
+	#ls -l  ${read2} >> $baseDir/logs/symbolic_test_fastq.log
   """
 }
 
@@ -169,7 +164,7 @@ process bam_merge {
   input:
   file bam from bam_merge_ch.collect()
   output:
-	file "*-merged.bam" into (index1_ch, hs_ch, bam10_ch, bam11_ch, bam12_ch)
+	file "*-merged.bam" into dup_ch
   script:
   """
   module add python/anaconda/2020.07/3.8
@@ -178,6 +173,23 @@ process bam_merge {
   """
 }
 
+process picard_pcr_removal {
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 7
+	storeDir "$baseDir/output/BAM/merge/RMD"
+  input:
+  file bam from dup_ch.flatten()
+  output:
+  file "${bam.simpleName}.rmd.bam" into (index1_ch, hs_ch, bam10_ch, bam11_ch, bam12_ch)
+	file "${bam.simpleName}.log"
+  script:
+  """
+	mkdir -p tmp
+  picard MarkDuplicates I=${bam} O=${bam.simpleName}.rmd.bam M=${bam.simpleName}.log TMP_DIR=tmp
+	TMP_DIR=tmp
+	rm -fr tmp
+  """
+}
 
 process bam_index {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
@@ -185,7 +197,7 @@ process bam_index {
   memory { 6.GB * task.attempt }
 	storeDir "$baseDir/output/BAM/merge/RMD"
   input:
-  file bam from index1_ch.flatten()
+  file bam from index1_ch
   output:
   file "${bam}.bai" into (index_3ch, index_4ch)
 
@@ -207,7 +219,7 @@ process hybrid_stats {
   memory { 6.GB * task.attempt }
 	storeDir "$baseDir/output/BAM/hybrid_stats"
   input:
-  file bam from hs_ch.flatten()
+  file bam from hs_ch
   output:
   file "${bam.simpleName}_hs_metrics.txt"
   script:
@@ -244,7 +256,7 @@ process alignment_stats{
   memory { 6.GB * task.attempt }
 	storeDir "$baseDir/output/BAM/alignment_stats"
 	input:
-	file bam from bam10_ch.flatten()
+	file bam from bam10_ch
 	output:
 	file "${bam.simpleName}_align_stats.txt" into verify_ch
 	script:
@@ -270,7 +282,7 @@ process verifybamid{
 //	stageInMode = 'copy' // somalier doesnt like sym/hardlinks.
 	storeDir "$baseDir/output/BAM/verifyBamID"
 	input:
-	file bam from bam11_ch.flatten()
+	file bam from bam11_ch
 	file idx from index_3ch.collect()
 	output:
 	file "${bam.simpleName}.log"

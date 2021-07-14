@@ -176,24 +176,45 @@ process VEP {
 }
 
 process slivar2 {
-  //errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	//maxRetries 6
+  errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 3
+  executor 'slurm'
+	clusterOptions '--qos=hmem'
+	queue 'hmem-512'
+	memory { 130.GB * task.attempt }
   storeDir "$baseDir/output/VCF_collect/VEP/slivar"
   input:
   file vcf from vepIndel_ch
   file ped from ped2_ch
   output:
-  file "${vcf.simpleName}.indels.slivar.vcf" into vepIndel2_ch
+  file "${vcf.simpleName}.indels.slivar.vcf" into (count5_ch,vepIndel2_ch)
   script:
   """
   slivar expr --js /var/spool/mail/slivar/slivar-functions.js \
   -g /var/spool/mail/slivar/gnomad.hg38.v2.zip \
   -g /var/spool/mail/slivar/topmed.hg38.dbsnp.151.zip \
-  --info 'INFO.impactful && INFO.gnomad_popmax_af < 0.1 && variant.FILTER == "PASS" && variant.ALT[0] != "*" && INFO.topmed_af < 0.1'\
+  --info 'INFO.impactful && INFO.gnomad_popmax_af < 0.1 && variant.FILTER == "PASS" && variant.ALT[0] != "*" && INFO.topmed_af < 0.1' \
   --ped $ped \
   --pass-only \
   --vcf $vcf \
   --out-vcf ${vcf.simpleName}.indels.slivar.vcf
+  """
+}
+
+process count_variants5{
+  errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
+	executor 'local'
+  storeDir "$baseDir/output/variant_counts/indels/family_merge"
+  input:
+	file vcf from count5_ch.flatten()
+  output:
+  file "${vcf}.slivar.indels.count" into vepIndel11_ch
+  script:
+  """
+	python $baseDir/bin/python/vcf_count.py --vcf $vcf --output ${vcf}.slivar.indels.count1
+
+  grep -v 'snp' ${vcf}.slivar.indels.count1 > ${vcf}.slivar.indels.count
   """
 }
 
@@ -402,20 +423,24 @@ process VEP2 {
 }
 
 process slivar {
-  //errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	//maxRetries 6
+  errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 3
+  executor 'slurm'
+	clusterOptions '--qos=hmem'
+	queue 'hmem-512'
+	memory { 130.GB * task.attempt }
   storeDir "$baseDir/output/VCF_collect/VEP/slivar"
   input:
   file vcf from vepSnp_ch
   file ped from ped_ch
   output:
-  file "${vcf.simpleName}.snps.slivar.vcf" into vepSnp2_ch
+  file "${vcf.simpleName}.snps.slivar.vcf" into (vepSnp2_ch,count6_ch)
   script:
   """
   slivar expr --js /var/spool/mail/slivar/slivar-functions.js \
   -g /var/spool/mail/slivar/gnomad.hg38.v2.zip \
   -g /var/spool/mail/slivar/topmed.hg38.dbsnp.151.zip \
-  --info 'INFO.impactful && INFO.gnomad_popmax_af < 0.1 && variant.FILTER == "PASS" && variant.ALT[0] != "*" && INFO.topmed_af < 0.1'\
+  --info 'INFO.impactful && INFO.gnomad_popmax_af < 0.1 && variant.FILTER == "PASS" && variant.ALT[0] != "*" && INFO.topmed_af < 0.1' \
   --ped $ped \
   --pass-only \
   --vcf $vcf \
@@ -423,6 +448,22 @@ process slivar {
   """
 }
 
+process count_variants6{
+  errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 6
+	executor 'local'
+  storeDir "$baseDir/output/variant_counts/snps/family_merge"
+  input:
+	file vcf from count6_ch.flatten()
+  output:
+  file "${vcf}.slivar.snps.count" into vepSNP11_ch
+  script:
+  """
+	python $baseDir/bin/python/vcf_count.py --vcf $vcf --output ${vcf}.slivar.snps.count1
+
+  grep 'snp' ${vcf}.slivar.snps.count1 > ${vcf}.slivar.snps.count
+  """
+}
 
 process vcf2tsv2 {
   errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
@@ -460,17 +501,22 @@ process Rtables {
   file indelF from sumCounts2_ch.collect()
   file snpC from sumCounts3_ch.collect()
   file snpF from sumCounts4_ch.collect()
+  file indelSl from vepIndel11_ch.collect()
+  file snpSl from vepSNP11_ch.collect()
   output:
   file "CallerOverlapCount.csv" into r1_ch
   file "FamilyOverlapCount.csv" into r2_ch
+  file "SlivarFilterCount.csv" into r3_ch
 
   script:
   """
   Rscript $baseDir/bin/R/variantCounts.R -v "$indelC" -f NA -w "*.CallerMerge.indels.count" -c NA -o Indels.CallerOverlap.csv -O "Caller Overlap"
   Rscript $baseDir/bin/R/variantCounts.R -v "$indelF" -f NA -w "*.FamMerge.indels.count" -c NA -o Indels.FamilyOverlap.csv -O "Group/Family Overlap"
+  Rscript $baseDir/bin/R/variantCounts.R -v "$indelSl" -f NA -w "*.slivar.indels.count" -c NA -o Indels.slivar.csv -O "Slivar filter"
 
   Rscript $baseDir/bin/R/variantCounts.R -v "$snpC" -f NA -w "*.CallerMerge.snps.count" -c NA -o Snps.CallerOverlap.csv -O "Caller Overlap"
   Rscript $baseDir/bin/R/variantCounts.R -v "$snpF" -f NA -w "*.FamMerge.snps.count" -c NA -o Snps.FamilyOverlap.csv -O "Group/Family Overlap"
+  Rscript $baseDir/bin/R/variantCounts.R -v "$snpF" -f NA -w "*.slivar.snps.count" -c NA -o Snps.slivar.csv -O "Slivar filter"
 
   # Merge the SNPs and Indels
   tail -n +2 Indels.CallerOverlap.csv > Indels.CallerOverlap2.csv
@@ -478,6 +524,9 @@ process Rtables {
 
   tail -n +2 Indels.FamilyOverlap.csv > Indels.FamilyOverlap2.csv
   cat Snps.FamilyOverlap.csv Indels.FamilyOverlap2.csv > FamilyOverlapCount.csv
+
+  tail -n +2 Indels.slivar.csv > Indels.slivar2.csv
+  cat Snps.slivar.csv Indels.slivar2.csv > SlivarFilterCount.csv
   """
 }
 
@@ -486,10 +535,11 @@ process markdown {
 //  errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 //	maxRetries 6
   input:
-  file vcf from md1_ch.collect()
-  file vcf2 from md2_ch.collect()
+  val vcf from md1_ch
+  val vcf2 from md2_ch
   val count1 from r1_ch
   val count2 from r2_ch
+  val count3 from r3_ch
   output:
   val "$baseDir/output/markdown/${projectname}_report.html"
   script:
@@ -508,6 +558,9 @@ process markdown {
   FB_filter = "$baseDir/output/variant_counts/freebayes/",
   GATK_filter = "$baseDir/output/variant_counts/GATK/",
   CallerOverlap = "$count1",
-  FamilyOverlap = "$count2"))'
+  FamilyOverlap = "$count2",
+  FilterSlivar = "$count3",
+  FilterSNPs = "$vcf",
+  FilterIndels = "$vcf2"))'
   """
 }

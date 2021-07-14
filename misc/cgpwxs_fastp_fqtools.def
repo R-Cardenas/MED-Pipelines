@@ -1,0 +1,41 @@
+# Singularity definition for exome_variant pipelines
+
+bootstrap: docker
+from: quay.io/wtsicgp/dockstore-cgpwxs:3.1.7
+
+%environment
+    PATH="$PATH:/usr/local/anaconda/bin/"
+%post
+
+
+    # install debian packages
+    apt-get update
+    apt-get install -y eatmydata wget curl sudo nano mmv
+    eatmydata apt-get install -y bzip2
+    apt-get clean
+
+    # install anaconda
+    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ./anaconda.sh && \
+    bash ./anaconda.sh -b -p /usr/local/anaconda ; rm ./anaconda.sh
+
+    # set anaconda path
+    echo $PATH
+    export PATH="$PATH:/usr/local/anaconda/bin/"
+    echo $PATH
+    echo ' '
+    which conda
+    echo ' '
+    echo $PATH
+    echo ' '
+    conda config --add channels bioconda
+    conda config --add channels r
+    conda config --add channels conda-forge
+
+     # install fq tools
+     conda install fastq-tools
+
+     # install fastP
+     conda install -c bioconda fastp
+
+     #House Keeping
+     conda clean --tarballs

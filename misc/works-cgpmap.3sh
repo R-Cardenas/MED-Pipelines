@@ -1,0 +1,55 @@
+singularity shell --home $PWD --bind /gpfs/afm/cg_pipelines/Pipelines/singularity/genomes/cgpmap_cgpwxs_NEW_2021/:/var/spool/mail \
+/gpfs/afm/cg_pipelines/Pipelines/singularity/genomes/cgpmap_cgpwxs_NEW_2021/dockstore-cgpwxs_3.1.7.sif
+
+
+ds-cgpmap.pl \
+-r /var/spool/mail/core_ref_GRCh37d5.tar.gz \
+-i /var/spool/mail/bwa_idx_GRCh37d5.tar.gz \
+-s S1A \
+-o output/S1A \
+input/S1A_UKDHE190338-A27-A51_HGV2GDSXX_L2_1.fq.gz.fq.gz input/S1A_UKDHE190338-A27-A51_HGV2GDSXX_L2_2.fq.gz
+
+ds-cgpmap.pl \
+-r /var/spool/mail/core_ref_GRCh37d5.tar.gz \
+-i /var/spool/mail/bwa_idx_GRCh37d5.tar.gz \
+-s S1B \
+-o output/S1B \
+input/S1B_UKDHE190339-A28-A61_HGV2GDSXX_L3_1.fq.gz.fq.gz input/S1B_UKDHE190339-A28-A61_HGV2GDSXX_L3_2.fq.gz
+
+
+
+
+singularity exec --cleanenv \
+--home $PWD --bind /gpfs/afm/cg_pipelines/Pipelines/singularity/genomes/cgpmap_cgpwxs_NEW_2021/:/var/spool/mail \
+--bind /gpfs/home/aft19qdu/scratch/Williams_240521/MED-Pipelines/output/cgpMAP/:/var/spool/data:ro \
+--bind /gpfs/home/aft19qdu/scratch/Williams_test_290621/output/cgpwxs:/var/spool/write \
+/gpfs/afm/cg_pipelines/Pipelines/singularity/genomes/cgpmap_cgpwxs_NEW_2021/dockstore-cgpwxs_3.1.7.sif \
+ds-cgpwxs.pl \
+-reference /var/spool/mail/core_ref_GRCh37d5.tar.gz \
+-annot /var/spool/mail/VAGrENT_ref_GRCh37d5_ensembl_75.tar.gz \
+-snv_indel /var/spool/mail/SNV_INDEL_ref_GRCh37d5-fragment.tar.gz \
+-tumour /var/spool/data/S1A_UKDHE190338-A27-A51_HGV2GDSXX_L2_1/S1A_UKDHE190338.bam \
+-tidx /var/spool/data/S1A_UKDHE190338-A27-A51_HGV2GDSXX_L2_1/S1A_UKDHE190338.bam.bai \
+-normal /var/spool/data/S1B_UKDHE190339-A28-A61_HGV2GDSXX_L3_1/S1B_UKDHE190339.bam \
+-nidx /var/spool/data/S1B_UKDHE190339-A28-A61_HGV2GDSXX_L3_1/S1B_UKDHE190339.bam.bai \
+-exclude NC_007605,hs37d5,GL% \
+-o /var/spool/write \
+-assembly "GRCh37"
+
+singularity exec --cleanenv \
+--home $PWD --bind /gpfs/afm/cg_pipelines/Pipelines/singularity/genomes/cgpmap_cgpwxs_NEW_2021/:/var/spool/mail \
+--bind /gpfs/home/aft19qdu/scratch/Williams_240521/MED-Pipelines/outputCOPY3/cgpMAP:/var/spool/data:ro \
+--bind /gpfs/scratch/aft19qdu/Williams_240521/MED-Pipelines/outputCOPY3/cgpwxs_untrim:/var/spool/write \
+/gpfs/afm/cg_pipelines/Pipelines/singularity/genomes/cgpmap_cgpwxs_NEW_2021/dockstore-cgpwxs_3.1.7.sif \
+ds-cgpwxs.pl \
+-reference /var/spool/mail/core_ref_GRCh37d5.tar.gz \
+-annot /var/spool/mail/VAGrENT_ref_GRCh37d5_ensembl_75.tar.gz \
+-snv_indel /var/spool/mail/SNV_INDEL_ref_GRCh37d5-fragment.tar.gz \
+-tumour /var/spool/data/S1A_UKDHE190338-A27-A51_HGV2GDSXX_L2_1.fq.gz/S1A_UKDHE190338.bam \
+-tidx /var/spool/data/S1A_UKDHE190338-A27-A51_HGV2GDSXX_L2_1.fq.gz/S1A_UKDHE190338.bam.bai \
+-normal /var/spool/data/S1B_UKDHE190339-A28-A61_HGV2GDSXX_L3_1.fq.gz/S1B_UKDHE190339.bam \
+-nidx /var/spool/data/S1B_UKDHE190339-A28-A61_HGV2GDSXX_L3_1.fq.gz/S1B_UKDHE190339.bam.bai \
+-exclude NC_007605,hs37d5,GL% \
+-outdir /var/spool/write \
+-sp "HOMO_SAPIENS" \
+-assembly "GRCh37"

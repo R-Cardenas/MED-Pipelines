@@ -23,10 +23,12 @@ println """\
          .stripIndent()
 
 process BaseRecalibrator {
-	//errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	//maxRetries 6
-	executor 'slurm'
-	memory { 7.GB * task.attempt }
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 3
+  executor 'slurm'
+	clusterOptions '--qos=hmem'
+	queue 'hmem-512'
+	memory { 150.GB * task.attempt }
   storeDir "$baseDir/output/GATK_haplotypeCaller"
   input:
   file bam from bam_ch
@@ -60,17 +62,16 @@ process BaseRecalibrator {
 
 process haplotypeCaller {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	maxRetries 6
+	maxRetries 3
   executor 'slurm'
 	clusterOptions '--qos=hmem'
 	queue 'hmem-512'
-	memory { 30.GB * task.attempt }
+	memory { 150.GB * task.attempt }
   storeDir "$baseDir/output/GATK_haplotypeCaller"
   input:
 	file bam from haplotype_bam_ch
   output:
   file "${bam.simpleName}.g.vcf.gz" into (haplotype2_ch,count1_ch)
-	file "${bam}.bai"
   script:
   """
 	mkdir -p tmp
@@ -95,72 +96,98 @@ process haplotypeCaller {
 
 process CNNscoreVariants {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	maxRetries 6
-	executor 'slurm'
-	memory { 7.GB * task.attempt }
+	maxRetries 3
+  executor 'slurm'
+	clusterOptions '--qos=hmem'
+	queue 'hmem-512'
+	memory { 150.GB * task.attempt }
   storeDir "$baseDir/output/GATK_haplotypeCaller"
   input:
   file vcf from haplotype2_ch
   output:
-  file "${vcf.simpleName}.CNN.g.vcf.gz" into filterVCF_ch
+  file "${vcf.simpleName}.indels_filtered.vcf.gz" into merge_ch
+	file "${vcf.simpleName}.snps_filtered.vcf.gz" into merge2_ch
+	file "${vcf.simpleName}*filtered.vcf.gz.tbi" into merge22_ch
   script:
   """
-	mkdir -p tmp
-	gatk IndexFeatureFile \
-		-F ${vcf} \
-		--tmp-dir tmp
 
-  gatk CNNScoreVariants \
-  -V ${vcf} \
-  -R $genome_fasta \
-	-O ${vcf.simpleName}.CNN.g.vcf.gz \
-	--tmp-dir tmp
+
+	gatk SortVcf -I ${vcf} -O sorted.${vcf}
+	gatk IndexFeatureFile -F sorted.${vcf}
+
+	gatk SelectVariants \
+    -V sorted.${vcf} \
+    -select-type SNP \
+    -O snps.vcf.gz
+
+	gatk SelectVariants \
+    -V sorted.${vcf} \
+    -select-type INDEL \
+    -O indels.vcf.gz
+
+	gatk VariantFiltration \
+    -V snps.vcf.gz \
+    -filter "QD < 2.0" --filter-name "QD2" \
+    -filter "QUAL < 30.0" --filter-name "QUAL30" \
+    -filter "SOR > 3.0" --filter-name "SOR3" \
+    -filter "FS > 60.0" --filter-name "FS60" \
+    -filter "MQ < 40.0" --filter-name "MQ40" \
+    -filter "MQRankSum < -12.5" --filter-name "MQRankSum-12.5" \
+    -filter "ReadPosRankSum < -8.0" --filter-name "ReadPosRankSum-8" \
+    -O ${vcf.simpleName}.snps_filteredd.vcf.gz
+
+		gatk SelectVariants \
+		-V ${vcf.simpleName}.snps_filteredd.vcf.gz \
+		--exclude-filtered true \
+		-O ${vcf.simpleName}.snps_filtered.vcf.gz
+
+	gatk VariantFiltration \
+    -V indels.vcf.gz \
+    -filter "QD < 2.0" --filter-name "QD2" \
+    -filter "QUAL < 30.0" --filter-name "QUAL30" \
+    -filter "FS > 200.0" --filter-name "FS200" \
+    -filter "ReadPosRankSum < -20.0" --filter-name "ReadPosRankSum-20" \
+    -O ${vcf.simpleName}.indels_filteredd.vcf.gz
+
+	gatk SelectVariants \
+		-V ${vcf.simpleName}.indels_filteredd.vcf.gz \
+		--exclude-filtered true \
+		-O ${vcf.simpleName}.indels_filtered.vcf.gz
+
 	"""
 }
 
-process FilterVariantTranches {
-	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	maxRetries 6
-	executor 'slurm'
+process merge_caller_indels {
+	//errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	//maxRetries 3
+  executor 'slurm'
 	memory { 7.GB * task.attempt }
   storeDir "$baseDir/output/GATK_haplotypeCaller"
-	input:
-	file vcf from filterVCF_ch
-	output:
-	file "${vcf.simpleName}-GATK.vcf" into (zip_ch,count2_ch)
-	script:
-	"""
-	mkdir -p tmp
-	gatk IndexFeatureFile \
-		-F ${vcf} \
-		--tmp-dir tmp
-
-	gatk FilterVariantTranches \
-	-V ${vcf} \
-	--info-key CNN_1D \
-	--resource $GATK_dbsnp138 \
-  --resource $GATK_1000G \
-  --resource $GATK_mills \
-	--resource $GATK_hapmap \
-	--snp-tranche 99.95 \
-	--indel-tranche 99.4 \
-	-O ${vcf.simpleName}-GATK.vcf \
-	--tmp-dir tmp
-
-
+  input:
+  file vcf1 from merge_ch.collect()
+	file vcf2 from merge2_ch.collect()
+	file tbi from merge22_ch.collect()
+  output:
+  file "*-GATK.vcf" into (zip_ch,count2_ch)
+	file "*concat.log"
+  script:
+  """
+	python $baseDir/bin/python/GATK_concat.py --vcf "${vcf1}" --vcf2 "${vcf2}"
 	"""
 }
 
+
+
 process count_variants{
-	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	maxRetries 6
+	//errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	//maxRetries 6
 	executor 'local'
   storeDir "$baseDir/output/variant_counts/GATK"
   input:
-	file vcf from count1_ch
-  file vcf2 from count2_ch
+	file vcf from count1_ch.flatten()
+  file vcf2 from count2_ch.flatten()
   output:
-  file "*.{count,tsv}"
+  file "{${vcf}.unfiltered.count,${vcf2}.filtered.tsv}"
   script:
   """
 	python $baseDir/bin/python/vcf_count.py --vcf $vcf --output ${vcf}.unfiltered.count
@@ -176,10 +203,10 @@ process zip {
 	executor 'local'
   storeDir "$baseDir/output/VCF_collect"
 	input:
-	file zip from zip_ch
+	file zip from zip_ch.flatten()
 	output:
-	file "${zip}.gz" into merge2_ch
-	file "${zip}.gz.csi" into merge3_ch
+	file "${zip}.gz"
+	file "${zip}.gz.csi"
 	script:
 	"""
 	bgzip ${zip}

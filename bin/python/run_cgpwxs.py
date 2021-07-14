@@ -83,7 +83,7 @@ cmd2 = fr"""
     -nidx /var/spool/data/{normal_bai} \
     -exclude NC_007605,hs37d5,GL% \
     -outdir {home1}/output/cgpwxs/{tumor1}_vs_{normal1} \
-    -sp "Human" \
+    -sp "HOMO_SAPIENS" \
     -assembly "GRCh37"
 	"""
 

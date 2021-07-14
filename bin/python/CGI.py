@@ -3,13 +3,21 @@ import glob
 import requests
 import re
 import time
+from pathlib import Path
 # The waits are necessary to allow the CGI API to prrocess the samples
 # as the program allows a set number. In addition the write function
 # in the python script will try to write a 'running' job giving an empty file.
 
 
-FILES = glob.glob('*.vcf') #contains whole path
+files = glob.glob('*.vcf.gz') #contains whole path
 
+print(files)
+if len(files) == 0:
+    syntaxError("No files detected")
+else:
+    print("files found")
+    for f in files:
+        print(f)
 
 # ------------- Send files to cancer genomic interpreter ------------------------
 
@@ -22,9 +30,9 @@ for i in files:
                             'mutations': open(str(i), 'rb') # j path of files
                         },
                         data=payload,)
-    time.sleep(400)
-print("VCF files submitted")
-time.sleep(500)
+    time.sleep(5)
+    print("VCF files submitted")
+time.sleep(30)
 
 # ------------------------------ obtain identifiers -----------------------------
 
@@ -45,6 +53,14 @@ for x in ID:
     r = requests.get('https://www.cancergenomeinterpreter.org/api/v1/' + x, headers=headers, params=payload)
     with open(title + 'CGI.zip', 'wb') as fd:
         fd.write(r._content)
+    time.sleep(10)
+
+    my_file = Path(title + 'CGI.zip')
+
+    if my_file.is_file():
+        print("file exists")
+    else:
+        syntaxError("file does not exist!!")
 
 # ----------------------------------Delete the jobs after it has completed and been downloaded ------
 for x in ID:

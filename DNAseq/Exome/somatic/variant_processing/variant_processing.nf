@@ -1,6 +1,5 @@
 params.vcf= "$baseDir/output/VCF_collect/*.vcf.gz"
 
-params.vcf= "$baseDir/output/VCF_collect/*.vcf.gz"
 
 vcf_ch = Channel. fromPath (params.vcf)
 vcf_ch.into { vcf1_ch; vcf2_ch }
@@ -164,8 +163,6 @@ process snps_sort {
 }
 
 process CGI {
-  errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	maxRetries 6
   storeDir "$baseDir/output/CGI"
   input:
   file vcf from cgi2_ch.collect()
@@ -187,7 +184,7 @@ process unzip {
   input:
   file zip from unzip_ch
   output:
-  file "*.zip" into unzip_ch.flatten()
+  file "*.zip"
   script:
   """
   unzip ${zip}

@@ -3,7 +3,7 @@
  /*
   * create a channel for fastq pairs
   */
-params.bam = "input/*.vcf"
+params.bam = "input/*.vcf.gz"
 
  Channel
          .fromPath( params.bam )
@@ -45,23 +45,28 @@ params.bam = "input/*.vcf"
 }
 
 process liftover {
-              stageInMode = 'copy'
-              //errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-              //maxRetries 6
-        storeDir "$baseDir/output/liftover"
-              executor 'slurm'
-              memory '5 GB'
+      errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+    	maxRetries 3
+      executor 'slurm'
+    	clusterOptions '--qos=hmem'
+    	queue 'hmem-512'
+    	memory { 130.GB * task.attempt }
+      storeDir "$baseDir/output/liftover"
         input:
         file bam from vcf_ch
         output:
         file "${bam.simpleName}.vcf.gz" into vep_ch
-              file "${bam.simpleName}.reject.vcf.gz"
+        file "${bam.simpleName}.reject.vcf.gz"
         script:
         """
+        mkdir tmp
 
+      bcftools annotate -x 'FORMAT/GL' ${bam} > fixed.vcf
 
-      gatk LiftoverVcf -I ${bam} -O ${bam.simpleName}.vcf.gz -R $baseDir/genome/hg19.fa \
-      --CHAIN $baseDir/hg38ToHg19.over.chain --REJECT ${bam.simpleName}.reject.vcf.gz
+      picard FixVcfHeader I=fixed.vcf O=fixed2.vcf
+
+      picard LiftoverVcf I=fixed2.vcf O=${bam.simpleName}.vcf.gz R=$baseDir/genome/hg19.fa \
+      CHAIN=$baseDir/hg38ToHg19.over.chain REJECT=${bam.simpleName}.reject.vcf.gz TMP_DIR=tmp
         """
 }
 

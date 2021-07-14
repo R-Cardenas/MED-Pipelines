@@ -2,13 +2,10 @@
  * create a channel for fastq pairss
  */
 
-params.fq = "/gpfs/afm/cg_pipelines/Pipelines/Cholesteatoma/chole_batch2_rerun_140121/**/*{1,2}.fq.gz"
+read1_ch = Channel .fromFilePairs( params_fq )
 
-read1_ch = Channel .fromFilePairs( params.fq )
 read1_ch.into { read2_ch; read3_ch }
 
-params.csv = "$baseDir/bin/williams_batch2_info.csv"
-csv_ch = Channel .fromPath( params.csv )
 
 println """\
 	\
@@ -37,12 +34,12 @@ process trim_galore{
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 2
 	stageInMode = 'copy' // trim_galore doesnt like sym/hardlinks.
-  storeDir "$baseDir/output/cgpMAP/trim_galore"
+  storeDir "$baseDir/output/trim_galore"
 	input:
 	tuple val(read2), file(reads) from read2_ch
 	output:
-	file "${reads[0].simpleName}_1.trim.fq.gz" into (read5_ch, read7_ch)
-	file "${reads[0].simpleName}_2.trim.fq.gz" into (read10_ch, read12_ch)
+	file "${reads[0].simpleName}_val_1.fq.gz" into (read5_ch, read7_ch)
+	file "${reads[1].simpleName}_val_2.fq.gz" into (read10_ch, read12_ch)
 	file("*.html") optional true
 	script: {
 	"""
@@ -51,10 +48,6 @@ process trim_galore{
 	trim_galore --paired --fastqc --illumina \
 	--basename ${reads[0].simpleName} \
 	${reads[0]} ${reads[1]}
-
-	# rename val with trim
-	mv ${reads[0].simpleName}_val_1.fq.gz ${reads[0].simpleName}_1.trim.fq.gz
-	mv ${reads[0].simpleName}_val_2.fq.gz ${reads[0].simpleName}_2.trim.fq.gz
 
 	# delete copied files
 	rm -fr ${reads[0]} # remove the copied files to prevent memory loss
@@ -67,7 +60,7 @@ process trim_galore{
 process fqtools{
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 2
-  storeDir "$baseDir/output/cgpMAP/trim_galore"
+  storeDir "$baseDir/output/trim_galore"
 	input:
 	file read1 from read7_ch
 	file read2 from read12_ch
@@ -114,10 +107,11 @@ process fqtools{
 
 process cgpMAP {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	maxRetries 4
-	cpus 10
-	executor 'slurm'
-	memory '45 GB'
+	maxRetries 3
+  executor 'slurm'
+	clusterOptions '--qos=hmem'
+	queue 'hmem-512'
+	memory { 130.GB * task.attempt }
 	storeDir "$baseDir/output/cgpMAP/${read1.simpleName}"
   input:
 	val read1 from read5_ch

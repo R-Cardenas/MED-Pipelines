@@ -68,11 +68,11 @@ process count_variants{
 	file vcf from count1_ch
   file vcf2 from count2_ch
   output:
-  file "*.count"
+  file "*.{count,tsv}"
   script:
   """
 	python $baseDir/bin/python/vcf_count.py --vcf $vcf --output ${vcf}.unfiltered.count
-	python $baseDir/bin/python/vcf_count.py --vcf $vcf2 --output ${vcf2}.filtered.count
+	python $baseDir/bin/python/vcf_count.py --vcf $vcf2 --output ${vcf2}.filtered.tsv
   """
 }
 

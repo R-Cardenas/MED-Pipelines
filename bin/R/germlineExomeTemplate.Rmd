@@ -17,6 +17,7 @@ params:
   FamilyOverlap: FamilyOverlap
   FilterSNPs: FilterSNPs
   FilterIndels: FilterIndels
+  FilterSlivar: FilterSlivar
 ---
 
 ```{r setup, include=FALSE}
@@ -35,7 +36,7 @@ library(kableExtra)
 
 <br />
 
-This report utilises the MED-genomics pipelines (https://github.com/R-Cardenas/MED-Pipelines), specifically the Exome-germline pipelines. 
+This report utilises the MED-genomics pipelines (https://github.com/R-Cardenas/MED-Pipelines), specifically the Exome-germline pipelines.
 
 For this project we have utilised the follow pipelines:
 
@@ -48,7 +49,7 @@ This report outlines the methodology used and presents the results.
 
 <br />
 
-# Methods 
+# Methods
 
 ### cgpMAP Pipeline
 
@@ -146,7 +147,7 @@ Annotation was performed using Ensembls' VEP using adding all 'usual' parameters
 
 <br />
 
-# Results 
+# Results
 
 ### Variant Caller filters
 
@@ -156,60 +157,62 @@ Once variants have been called, they next are required to be filtered. Here we s
 
 # Load in files from terminal
 FB_unfiltered <- list.files(path=params$FB_filter, pattern = '*.unfiltered.count',full.names = T)
-FB_filtered <- list.files(path=params$FB_filter, pattern = '*.filtered.count',full.names = T)
+FB_filtered <- list.files(path=params$FB_filter, pattern = '*.filtered.tsv',full.names = T)
 GATK_unfiltered <- list.files(path=params$GATK_filter, pattern = '*.unfiltered.count',full.names = T)
-GATK_filtered <- list.files(path=params$GATK_filter, pattern = '*.filtered.count',full.names = T)
+GATK_filtered <- list.files(path=params$GATK_filter, pattern = '*.filtered.tsv',full.names = T)
 
 # make unfiltered data frame
+# make unfiltered data frame
 FB_unfiltered_df <- data_frame(filenames = FB_unfiltered) %>%
-  mutate(file_contents = map(filenames, 
+  mutate(file_contents = map(filenames,
                              ~read_table2(.,col_names=FALSE))) %>%
   unnest() %>%
   mutate(filenames = basename(filenames)) %>%
+  group_by(X2) %>%
+  dplyr::rename(variant_type = X2) %>%
+  summarise(Frequency = sum(X1)) %>%
   mutate(variantCaller = "Freebayes") %>%
   mutate(filtered = "unfiltered")
 
+
 GATK_unfiltered_df <- data_frame(filenames = GATK_unfiltered) %>%
-  mutate(file_contents = map(filenames, 
+  mutate(file_contents = map(filenames,
                              ~read_table2(.,col_names=FALSE))) %>%
   unnest() %>%
   mutate(filenames = basename(filenames)) %>%
+  group_by(X2) %>%
+  dplyr::rename(variant_type = X2) %>%
+  summarise(Frequency = sum(X1)) %>%
   mutate(variantCaller = "GATK") %>%
   mutate(filtered = "unfiltered")
 
 # make filtered data frame
 FB_filtered_df <- data_frame(filenames = FB_filtered) %>%
-  mutate(file_contents = map(filenames, 
+  mutate(file_contents = map(filenames,
                              ~read_table2(.,col_names=FALSE))) %>%
   unnest() %>%
   mutate(filenames = basename(filenames)) %>%
+  group_by(X2) %>%
+  dplyr::rename(variant_type = X2) %>%
+  summarise(Frequency = sum(X1)) %>%
   mutate(variantCaller = "Freebayes") %>%
   mutate(filtered = "filtered")
 
-GATK_filtered_df <- data_frame(filenames = GATK_unfiltered) %>%
-  mutate(file_contents = map(filenames, 
+GATK_filtered_df <- data_frame(filenames = GATK_filtered) %>%
+  mutate(file_contents = map(filenames,
                              ~read_table2(.,col_names=FALSE))) %>%
   unnest() %>%
   mutate(filenames = basename(filenames)) %>%
+  group_by(X2) %>%
+  dplyr::rename(variant_type = X2) %>%
+  summarise(Frequency = sum(X1)) %>%
   mutate(variantCaller = "GATK") %>%
   mutate(filtered = "filtered")
 
-merge_df <- rbind(FB_unfiltered_df,FB_filtered_df,GATK_unfiltered_df,GATK_filtered_df) %>%
-  as.data.frame() %>%
-  dplyr::rename(n = X1) %>%
-  dplyr::rename(variant_type = X2) %>%
-  group_by(variantCaller,variant_type,filtered) %>%
-  dplyr::summarise(sum_n = sum(n)) %>%
-  dplyr::select(c(variantCaller,filtered,variant_type,sum_n)) %>%
-  arrange(desc(filtered)) %>%
-  dplyr::rename(`Variant caller` = variantCaller) %>%
-  dplyr::rename(`Variant type` = variant_type) %>%
-  dplyr::rename(` ` = filtered) %>%
-  dplyr::rename(N = sum_n) %>%
-  mutate(`Variant type` = str_split(`Variant type`,pattern = "=")[[1]][2])
+merge_df <- rbind(FB_unfiltered_df,FB_filtered_df,GATK_unfiltered_df,GATK_filtered_df)
 
 merge_df %>%
-  kbl(table.attr = "style='width:40%;'") %>% 
+  kbl(table.attr = "style='width:40%;'") %>%
   collapse_rows(columns = 1:2) %>%
   kable_paper("striped", full_width = FALSE)
 
@@ -231,10 +234,10 @@ callerOverlap <- read_csv(params$CallerOverlap) %>% #input the params from termi
   dplyr::rename(`Variant type` = type2) %>%
   dplyr::group_by(`Variant caller`,`Variant type`) %>%
   dplyr::summarise(N = sum(n)) %>%
-  dplyr::mutate(` ` = "NA") 
+  dplyr::mutate(` ` = "NA")
 
 callerOverlap %>%
-  knitr::kable() %>% 
+  knitr::kable() %>%
   collapse_rows(columns = 1:2) %>%
   kable_paper("striped", full_width = FALSE)
 
@@ -258,10 +261,37 @@ callerOverlap <- read_csv(params$FamilyOverlap) %>% #input the params from termi
   dplyr::rename(`Variant type` = type2) %>%
   dplyr::group_by(`Variant caller`,`Variant type`) %>%
   dplyr::summarise(N = sum(n)) %>%
-  dplyr::mutate(` ` = "NA") 
+  dplyr::mutate(` ` = "NA")
 
 callerOverlap %>%
-  knitr::kable() %>% 
+  knitr::kable() %>%
+  collapse_rows(columns = 1:2) %>%
+  kable_paper("striped", full_width = FALSE)
+
+
+
+```
+
+
+### Slivar-filter variant counts
+
+In this step we overlapped variants common in across family members.
+
+```{r, echo=FALSE, results= 'asis', warning=FALSE, message=FALSE}
+
+
+#---------------------- load caller overlap files ---------------------------------##
+
+
+callerOverlap <- read_csv(params$FilterSlivar) %>% #input the params from terminal
+  dplyr::mutate(`Variant caller` = "Family GATK overlap + Slivar filter") %>%
+  dplyr::rename(`Variant type` = type2) %>%
+  dplyr::group_by(`Variant caller`,`Variant type`) %>%
+  dplyr::summarise(N = sum(n)) %>%
+  dplyr::mutate(` ` = "NA")
+
+callerOverlap %>%
+  knitr::kable() %>%
   collapse_rows(columns = 1:2) %>%
   kable_paper("striped", full_width = FALSE)
 
@@ -271,7 +301,7 @@ callerOverlap %>%
 
 ### Variant DataTables {.tabset}
 
-#### SNPs 
+#### SNPs
 
 
 ```{r, echo=FALSE, results= 'asis', warning=FALSE, message=FALSE}
@@ -282,7 +312,7 @@ ALL_snps <- read_csv(params$FilterSNPs) %>%
   distinct()
 
 datatable(ALL_snps, extensions = 'Buttons',filter='top',
-          options = list(dom = 'Bfrtip', 
+          options = list(dom = 'Bfrtip',
                          buttons = list(I('colvis'),c('copy', 'csv', 'excel', 'pdf', 'print')),
                          lengthMenu = c(5, 10, 15, 20), scrollX = T))
 
@@ -290,7 +320,7 @@ datatable(ALL_snps, extensions = 'Buttons',filter='top',
 ```
 
 
-#### Variants Indels 
+#### Variants Indels
 
 Following family overlap, th
 
@@ -302,10 +332,9 @@ ALL_snps <- read_csv(params$FilterIndels) %>%
   distinct()
 
 datatable(ALL_snps, extensions = 'Buttons',filter='top',
-          options = list(dom = 'Bfrtip', 
+          options = list(dom = 'Bfrtip',
                          buttons = list(I('colvis'),c('copy', 'csv', 'excel', 'pdf', 'print')),
                          lengthMenu = c(5, 10, 15, 20), scrollX = T))
 
 
 ```
-
