@@ -29,8 +29,8 @@ process trim_galore{
 	input:
 	tuple val(read2), file(reads) from read2_ch
 	output:
-	file "${reads[0].simpleName}_1.trim.fq.gz" into (read5_ch, read7_ch)
-	file "${reads[0].simpleName}_2.trim.fq.gz" into (read10_ch, read12_ch)
+	file "${reads[0].simpleName}_val_1.fq.gz" into (read5_ch, read7_ch)
+	file "${reads[1].simpleName}_val_2.fq.gz" into (read10_ch, read12_ch)
 	file("*.html") optional true
 	script: {
 	"""
@@ -39,10 +39,6 @@ process trim_galore{
 	trim_galore --paired --fastqc --illumina \
 	--basename ${reads[0].simpleName} \
 	${reads[0]} ${reads[1]}
-
-	# rename val with trim
-	mv ${reads[0].simpleName}_val_1.fq.gz ${reads[0].simpleName}_1.trim.fq.gz
-	mv ${reads[0].simpleName}_val_2.fq.gz ${reads[0].simpleName}_2.trim.fq.gz
 
 	# delete copied files
 	rm -fr ${reads[0]} # remove the copied files to prevent memory loss

@@ -63,10 +63,12 @@ process indels_filter {
 
 
 process VEP {
-  executor 'slurm'
-  memory { 7.GB * task.attempt }
   errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
 	maxRetries 6
+  executor 'slurm'
+	clusterOptions '--qos=hmem'
+	queue 'hmem-512'
+	memory { 80.GB * task.attempt }
   storeDir "$baseDir/output_TRAPD/VCF_collect/VEP/vcf"
   input:
   file vcf from vep_ch.flatten()
@@ -78,7 +80,6 @@ process VEP {
   --dir_cache /var/spool/mail/VEP_hg38/.vep \
   -o ${vcf.baseName}_VEP.vcf \
   --cache \
-  --offline \
   --species homo_sapiens \
   --assembly GRCh38 \
   -af_1kg \
@@ -96,6 +97,9 @@ process VEP {
   --pubmed \
   --check_existing \
   --everything \
+  --plugin Condel \
+  --sift p \
+  --polyphen p \
   --force_overwrite
   """
 }
@@ -172,7 +176,7 @@ process VEP2 {
   executor 'slurm'
 	clusterOptions '--qos=hmem'
 	queue 'hmem-512'
-	memory { 30.GB * task.attempt }
+	memory { 80.GB * task.attempt }
   storeDir "$baseDir/output_TRAPD/VCF_collect/VEP/vcf"
   input:
   file vcf from vep2_ch.flatten()
@@ -184,11 +188,10 @@ process VEP2 {
   --dir_cache /var/spool/mail/VEP_hg38/.vep \
   -o ${vcf.baseName}_VEP.vcf \
   --cache \
-  --offline \
   --species homo_sapiens \
   --assembly GRCh38 \
   -af_1kg \
-  --fork 15 \
+  --fork 5 \
   --offline \
   --fasta /var/spool/mail/cgpwgs_ref/GRCh38/core_ref_GRCh38_hla_decoy_ebv/genome.fa \
   --custom /var/spool/mail/conservation/hg38.phastCons7way.bw,Conservation,bigwig,exact \
@@ -202,6 +205,9 @@ process VEP2 {
   --pubmed \
   --check_existing \
   --everything \
+  --plugin Condel \
+  --sift p \
+  --polyphen p \
   --force_overwrite
   """
 }
@@ -220,7 +226,7 @@ process slivar {
   slivar expr --js /var/spool/mail/slivar/slivar-functions.js \
   -g /var/spool/mail/slivar/gnomad.hg38.v2.zip \
   -g /var/spool/mail/slivar/topmed.hg38.dbsnp.151.zip \
-  --info 'INFO.impactful && INFO.gnomad_popmax_af < 0.1 && variant.FILTER == "PASS" && variant.ALT[0] != "*" && INFO.topmed_af < 0.1'\
+  --info 'INFO.impactful && INFO.gnomad_popmax_af < 0.01 && variant.FILTER == "PASS" && variant.ALT[0] != "*" && INFO.topmed_af < 0.01'\
   --ped $ped \
   --pass-only \
   --vcf $vcf \

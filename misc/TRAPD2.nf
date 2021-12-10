@@ -40,6 +40,7 @@ params.bam = "input/*.vcf.gz"
    file "${bam.simpleName}.norm.vcf" into vcf_ch
    script:
    """
+   # you need to change GQ to a float. 
          bcftools norm -m -any -f /var/spool/mail/cgpwgs_ref/GRCh38/core_ref_GRCh38_hla_decoy_ebv/genome.fa ${bam} > ${bam.simpleName}.norm.vcf
    """
 }
