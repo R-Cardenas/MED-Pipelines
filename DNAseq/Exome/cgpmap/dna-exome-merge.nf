@@ -30,7 +30,7 @@ process trim_galore{
 	tuple val(read2), file(reads) from read2_ch
 	output:
 	file "${reads[0].simpleName}_val_1.fq.gz" into (read5_ch, read7_ch)
-	file "${reads[1].simpleName}_val_2.fq.gz" into (read10_ch, read12_ch)
+	file "${reads[0].simpleName}_val_2.fq.gz" into (read10_ch, read12_ch)
 	file("*.html") optional true
 	script: {
 	"""
