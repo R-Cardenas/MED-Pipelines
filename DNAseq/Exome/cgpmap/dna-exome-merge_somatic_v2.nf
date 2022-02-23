@@ -3,7 +3,7 @@
  */
 
 read1_ch = Channel .fromFilePairs( params_fq )
-
+read1_ch.into { read2_ch; read3_ch }
 
 println """
          ==================================
@@ -20,6 +20,54 @@ println """
          .stripIndent()
 
 
+process fqtools{
+  afterScript "rm -fr ${reads[0]} ${reads[1]}"
+	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	maxRetries 7
+	stageInMode = 'copy' // trim_galore doesnt like sym/hardlinks.
+  storeDir "$baseDir/output/trim_galore/fqtools"
+	input:
+	tuple val(read2), file(reads) from read2_ch
+	output:
+	file "${reads[1]}.yaml" into yaml_ch
+	file("fqtools_WARNING_?.txt") optional true
+	script:
+	"""
+	# Read1
+	# Extract header
+	fqtools -d header ${reads[0]} | grep ":[C,A,T,G]*[+][C,A,T,G]" | head -1 > ${reads[0]}.txt
+
+	### Counts lines in file1 and will repeat if it is empty
+  words=`wc -l ${reads[0]}.txt  | awk '{print \$1}'`;
+	if [ \$words -eq 0 ]
+	then
+	fqtools -d header ${reads[0]} | head -1 > ${reads[0]}.txt
+	else
+	echo 'alls good!'
+	fi
+
+	# Read2
+	# Extract header
+
+  fqtools -d header ${reads[1]} | grep ":[C,A,T,G]*[+][C,A,T,G]" | head -1 > ${reads[1]}.txt
+
+	### Counts lines in file2 and will repeat if it is empty
+	words=`wc -l ${reads[1]}.txt  | awk '{print \$1}'`;
+	if [ \$words -eq 0 ]
+	then
+	fqtools -d header ${reads[1]} | head -1 > ${reads[1]}.txt
+	else
+	echo 'alls good!'
+	fi
+
+
+	python $baseDir/bin/python/fastq2config_cgpmap.py \
+	--fq1 ${reads[0]}.txt --fq2 ${reads[1]}.txt \
+	--n1 ${reads[0]} --n2 ${reads[1]} --o ${reads[1]}.yaml
+
+	cp *WARNING* $baseDir/logs 2>/dev/null || :
+	"""
+}
 
 process cgpMAP {
 	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
@@ -29,9 +77,10 @@ process cgpMAP {
 	clusterOptions '--qos=hmem'
 	queue 'hmem-512'
 	memory { 130.GB * task.attempt }
-	storeDir "$baseDir/output/cgpMAP/${reads[0]}"
+	storeDir "$baseDir/output/cgpMAP2/${reads[0]}"
   input:
-  tuple val(read2), file(reads) from read1_ch
+  tuple val(read2), file(reads) from read3_ch
+  file yaml from yaml_ch.collect()
   output:
   file "${reads[0]}.bam" into cgp_ch
   script:
@@ -46,6 +95,7 @@ process cgpMAP {
   -r $cgpmap_genome \
   -i $cgpmap_index \
   -s \$name \
+  -g ${reads[1]}.yaml \
   -t 10 \
   ${reads[0]} ${reads[1]}
 

@@ -41,13 +41,23 @@ process BaseRecalibrator {
 	file "${bam}.table"
   script:
   """
+	# cgpmap only add ID (RGID) and Sample (RGSM)
+	# we need to add some values. Null should be the same as no value
+	gatk AddOrReplaceReadGroups \
+	-I ${bam} \
+	-O ${bam.simpleName}.replace.head.bam \
+	-PU ILLUMINA \
+	-SM ${bam.simpleName} \
+	-LB null \
+	-PL null
+
 	mkdir -p tmp
 
 	gatk BuildBamIndex \
 	-I ${bam} \
 
   gatk BaseRecalibrator \
-	-I ${bam} \
+	-I ${bam.simpleName}.replace.head.bam \
   -R $genome_fasta \
   --known-sites $GATK_dbsnp138 \
   --known-sites $GATK_1000G \
@@ -57,11 +67,11 @@ process BaseRecalibrator {
 
 	gatk ApplyBQSR \
   -R $genome_fasta \
-  -I ${bam} \
+  -I ${bam.simpleName}.replace.head.bam \
   --bqsr-recal-file ${bam}.table \
   -O ${bam.simpleName}.BQSR.bam \
 	--tmp-dir tmp
-	rm -fr tmp
+	rm -fr tmp ${bam.simpleName}.replace.head.bam
 
   """
 }

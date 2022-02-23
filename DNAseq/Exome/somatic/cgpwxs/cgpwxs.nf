@@ -48,12 +48,16 @@ process untar {
   errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
   maxRetries 7
   executor 'local'
+	storeDir "$baseDir/output/VCF_collect"
   input:
 	file tar from untar_ch
   output:
-  file "XXX" into untar_ch
+  file "*flagged.muts.vcf.gz"
+	file "*flagged.vcf.gz"
   script:
   """
 	tar -xzf ${tar}
+	cp ./**/caveman/*flagged.muts.vcf.gz . # caveman
+	cp ./**/pindel/*flagged.vcf.gz . # pindel
   """
 }
