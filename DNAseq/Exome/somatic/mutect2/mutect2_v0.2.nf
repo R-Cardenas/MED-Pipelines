@@ -77,12 +77,12 @@ process BaseRecalibrator {
 }
 
 process mutect2 {
-	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	maxRetries 3
+	// errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	// maxRetries 3
   executor 'slurm'
 	clusterOptions '--qos=hmem'
 	queue 'hmem-512'
-	memory { 150.GB * task.attempt }
+	memory 85.GB
   storeDir "$baseDir/output/mutect2"
   input:
   val x from tumor_ch
@@ -92,7 +92,7 @@ process mutect2 {
   file "*-unfiltered-GATK.vcf.gz" into (filter_vcf_ch, count1_ch)
   script:
   """
-	python $baseDir/bin/python/run_mutect2.py \
+	python3 $baseDir/bin/python/run_mutect2.py \
 	--tumor '${x}' \
 	--normal '${y}' \
 	--intervals ${target_interval} \
@@ -103,12 +103,12 @@ process mutect2 {
 }
 
 process pileup_summary{
-	errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
-	maxRetries 3
+	// errorStrategy { sleep(Math.pow(2, task.attempt) * 200 as long); return 'retry' }
+	// maxRetries 3
   executor 'slurm'
 	clusterOptions '--qos=hmem'
 	queue 'hmem-512'
-	memory { 150.GB * task.attempt }
+	memory 85.GB
   storeDir "$baseDir/output/mutect2/pileup"
 	input:
 	file bam from pileup_ch.flatten()
@@ -117,7 +117,7 @@ process pileup_summary{
 	file "${bam.simpleName}.getpileupsummaries.table" into contamination_ch
 	script:
 	"""
-	gatk GetPileupSummaries \
+	gatk --java-options "-Xmx75G" GetPileupSummaries \
 	-I ${bam} \
 	-V $Mutect2_germline \
 	--create-output-bam-index \

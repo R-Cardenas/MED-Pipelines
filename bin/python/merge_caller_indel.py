@@ -80,7 +80,7 @@ for f in unique:
         -f 0.10 -F 0.10 -wa -header \
         > {outputname2} """
         print(cmd)
-        # os.system(cmd)
+        os.system(cmd)
 
     elif len(selected_files) > 2:
         SyntaxError("Why is there more than 2 files. Should just be freebayes and GATK")
