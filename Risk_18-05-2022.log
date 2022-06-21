@@ -1,0 +1,78 @@
+<pymysql.connections.Connection object at 0x119735700>
+<pymysql.connections.Connection object at 0x1266e1700>
+HC002 
+                    INSERT INTO Risk (Donor_ID,cpg,t_stage,damico,PSA,damico_mri,total_gleason_predominantly,total_gleason_less_predominantly) VALUES (%s,%s,%s,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE Donor_ID=values(Donor_ID), cpg=values(cpg), t_stage=values(t_stage), damico=values(damico), PSA=values(PSA), damico_mri=values(damico_mri), total_gleason_predominantly=values(total_gleason_predominantly), total_gleason_less_predominantly=values(total_gleason_less_predominantly)
+                    
+HC003 
+                    INSERT INTO Risk (Donor_ID,cpg,t_stage,damico,PSA,damico_mri,total_gleason_predominantly,total_gleason_less_predominantly) VALUES (%s,%s,%s,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE Donor_ID=values(Donor_ID), cpg=values(cpg), t_stage=values(t_stage), damico=values(damico), PSA=values(PSA), damico_mri=values(damico_mri), total_gleason_predominantly=values(total_gleason_predominantly), total_gleason_less_predominantly=values(total_gleason_less_predominantly)
+                    
+<pymysql.connections.Connection object at 0x11fe5d550>
+HC002 
+                    INSERT INTO Risk (Donor_ID,total_gleason_less_predominantly,total_gleason_predominantly,date_of_initial_urine_collection,cpg,damico_mri,damico,t_stage,PSA) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE Donor_ID=values(Donor_ID), total_gleason_less_predominantly=values(total_gleason_less_predominantly), total_gleason_predominantly=values(total_gleason_predominantly), date_of_initial_urine_collection=values(date_of_initial_urine_collection), cpg=values(cpg), damico_mri=values(damico_mri), damico=values(damico), t_stage=values(t_stage), PSA=values(PSA)
+                    
+HC003 
+                    INSERT INTO Risk (Donor_ID,total_gleason_less_predominantly,total_gleason_predominantly,date_of_initial_urine_collection,cpg,damico_mri,damico,t_stage,PSA) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE Donor_ID=values(Donor_ID), total_gleason_less_predominantly=values(total_gleason_less_predominantly), total_gleason_predominantly=values(total_gleason_predominantly), date_of_initial_urine_collection=values(date_of_initial_urine_collection), cpg=values(cpg), damico_mri=values(damico_mri), damico=values(damico), t_stage=values(t_stage), PSA=values(PSA)
+                    
+HC007 
+                    INSERT INTO Risk (Donor_ID,total_gleason_less_predominantly,total_gleason_predominantly,date_of_initial_urine_collection,cpg,damico_mri,damico,t_stage,PSA) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE Donor_ID=values(Donor_ID), total_gleason_less_predominantly=values(total_gleason_less_predominantly), total_gleason_predominantly=values(total_gleason_predominantly), date_of_initial_urine_collection=values(date_of_initial_urine_collection), cpg=values(cpg), damico_mri=values(damico_mri), damico=values(damico), t_stage=values(t_stage), PSA=values(PSA)
+                    
+HC009 
+                    INSERT INTO Risk (Donor_ID,total_gleason_less_predominantly,total_gleason_predominantly,date_of_initial_urine_collection,cpg,damico_mri,damico,t_stage,PSA) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE Donor_ID=values(Donor_ID), total_gleason_less_predominantly=values(total_gleason_less_predominantly), total_gleason_predominantly=values(total_gleason_predominantly), date_of_initial_urine_collection=values(date_of_initial_urine_collection), cpg=values(cpg), damico_mri=values(damico_mri), damico=values(damico), t_stage=values(t_stage), PSA=values(PSA)
+                    
+HC014 
+                    INSERT INTO Risk (Donor_ID,total_gleason_less_predominantly,total_gleason_predominantly,date_of_initial_urine_collection,cpg,damico_mri,damico,t_stage,PSA) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE Donor_ID=values(Donor_ID), total_gleason_less_predominantly=values(total_gleason_less_predominantly), total_gleason_predominantly=values(total_gleason_predominantly), date_of_initial_urine_collection=values(date_of_initial_urine_collection), cpg=values(cpg), damico_mri=values(damico_mri), damico=values(damico), t_stage=values(t_stage), PSA=values(PSA)
+                    
+HC015 
+                    INSERT INTO Risk (Donor_ID,total_gleason_less_predominantly,total_gleason_predominantly,date_of_initial_urine_collection,cpg,damico_mri,damico,t_stage,PSA) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE Donor_ID=values(Donor_ID), total_gleason_less_predominantly=values(total_gleason_less_predominantly), total_gleason_predominantly=values(total_gleason_predominantly), date_of_initial_urine_collection=values(date_of_initial_urine_collection), cpg=values(cpg), damico_mri=values(damico_mri), damico=values(damico), t_stage=values(t_stage), PSA=values(PSA)
+                    
+HC016 
+                    INSERT INTO Risk (Donor_ID,total_gleason_less_predominantly,total_gleason_predominantly,date_of_initial_urine_collection,cpg,damico_mri,damico,t_stage,PSA) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE Donor_ID=values(Donor_ID), total_gleason_less_predominantly=values(total_gleason_less_predominantly), total_gleason_predominantly=values(total_gleason_predominantly), date_of_initial_urine_collection=values(date_of_initial_urine_collection), cpg=values(cpg), damico_mri=values(damico_mri), damico=values(damico), t_stage=values(t_stage), PSA=values(PSA)
+                    
+HC018 
+                    INSERT INTO Risk (Donor_ID,total_gleason_less_predominantly,total_gleason_predominantly,date_of_initial_urine_collection,cpg,damico_mri,damico,t_stage,PSA) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE Donor_ID=values(Donor_ID), total_gleason_less_predominantly=values(total_gleason_less_predominantly), total_gleason_predominantly=values(total_gleason_predominantly), date_of_initial_urine_collection=values(date_of_initial_urine_collection), cpg=values(cpg), damico_mri=values(damico_mri), damico=values(damico), t_stage=values(t_stage), PSA=values(PSA)
+                    
+HC019 
+                    INSERT INTO Risk (Donor_ID,total_gleason_less_predominantly,total_gleason_predominantly,date_of_initial_urine_collection,cpg,damico_mri,damico,t_stage,PSA) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE Donor_ID=values(Donor_ID), total_gleason_less_predominantly=values(total_gleason_less_predominantly), total_gleason_predominantly=values(total_gleason_predominantly), date_of_initial_urine_collection=values(date_of_initial_urine_collection), cpg=values(cpg), damico_mri=values(damico_mri), damico=values(damico), t_stage=values(t_stage), PSA=values(PSA)
+                    
+HC020 
+                    INSERT INTO Risk (Donor_ID,total_gleason_less_predominantly,total_gleason_predominantly,date_of_initial_urine_collection,cpg,damico_mri,damico,t_stage,PSA) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE Donor_ID=values(Donor_ID), total_gleason_less_predominantly=values(total_gleason_less_predominantly), total_gleason_predominantly=values(total_gleason_predominantly), date_of_initial_urine_collection=values(date_of_initial_urine_collection), cpg=values(cpg), damico_mri=values(damico_mri), damico=values(damico), t_stage=values(t_stage), PSA=values(PSA)
+                    
+HC021 
+                    INSERT INTO Risk (Donor_ID,total_gleason_less_predominantly,total_gleason_predominantly,date_of_initial_urine_collection,cpg,damico_mri,damico,t_stage,PSA) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE Donor_ID=values(Donor_ID), total_gleason_less_predominantly=values(total_gleason_less_predominantly), total_gleason_predominantly=values(total_gleason_predominantly), date_of_initial_urine_collection=values(date_of_initial_urine_collection), cpg=values(cpg), damico_mri=values(damico_mri), damico=values(damico), t_stage=values(t_stage), PSA=values(PSA)
+                    
+HC_272 
+                    INSERT INTO Risk (Donor_ID,total_gleason_less_predominantly,total_gleason_predominantly,date_of_initial_urine_collection,cpg,damico_mri,damico,t_stage,PSA) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE Donor_ID=values(Donor_ID), total_gleason_less_predominantly=values(total_gleason_less_predominantly), total_gleason_predominantly=values(total_gleason_predominantly), date_of_initial_urine_collection=values(date_of_initial_urine_collection), cpg=values(cpg), damico_mri=values(damico_mri), damico=values(damico), t_stage=values(t_stage), PSA=values(PSA)
+                    
+HC_273 
+                    INSERT INTO Risk (Donor_ID,total_gleason_less_predominantly,total_gleason_predominantly,date_of_initial_urine_collection,cpg,damico_mri,damico,t_stage,PSA) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE Donor_ID=values(Donor_ID), total_gleason_less_predominantly=values(total_gleason_less_predominantly), total_gleason_predominantly=values(total_gleason_predominantly), date_of_initial_urine_collection=values(date_of_initial_urine_collection), cpg=values(cpg), damico_mri=values(damico_mri), damico=values(damico), t_stage=values(t_stage), PSA=values(PSA)
+                    
+HC_274 
+                    INSERT INTO Risk (Donor_ID,total_gleason_less_predominantly,total_gleason_predominantly,date_of_initial_urine_collection,cpg,damico_mri,damico,t_stage,PSA) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE Donor_ID=values(Donor_ID), total_gleason_less_predominantly=values(total_gleason_less_predominantly), total_gleason_predominantly=values(total_gleason_predominantly), date_of_initial_urine_collection=values(date_of_initial_urine_collection), cpg=values(cpg), damico_mri=values(damico_mri), damico=values(damico), t_stage=values(t_stage), PSA=values(PSA)
+                    
+HC_275 
+                    INSERT INTO Risk (Donor_ID,total_gleason_less_predominantly,total_gleason_predominantly,date_of_initial_urine_collection,cpg,damico_mri,damico,t_stage,PSA) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE Donor_ID=values(Donor_ID), total_gleason_less_predominantly=values(total_gleason_less_predominantly), total_gleason_predominantly=values(total_gleason_predominantly), date_of_initial_urine_collection=values(date_of_initial_urine_collection), cpg=values(cpg), damico_mri=values(damico_mri), damico=values(damico), t_stage=values(t_stage), PSA=values(PSA)
+                    
+HC_276 
+                    INSERT INTO Risk (Donor_ID,total_gleason_less_predominantly,total_gleason_predominantly,date_of_initial_urine_collection,cpg,damico_mri,damico,t_stage,PSA) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE Donor_ID=values(Donor_ID), total_gleason_less_predominantly=values(total_gleason_less_predominantly), total_gleason_predominantly=values(total_gleason_predominantly), date_of_initial_urine_collection=values(date_of_initial_urine_collection), cpg=values(cpg), damico_mri=values(damico_mri), damico=values(damico), t_stage=values(t_stage), PSA=values(PSA)
+                    
+HC_277 
+                    INSERT INTO Risk (Donor_ID,total_gleason_less_predominantly,total_gleason_predominantly,date_of_initial_urine_collection,cpg,damico_mri,damico,t_stage,PSA) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE Donor_ID=values(Donor_ID), total_gleason_less_predominantly=values(total_gleason_less_predominantly), total_gleason_predominantly=values(total_gleason_predominantly), date_of_initial_urine_collection=values(date_of_initial_urine_collection), cpg=values(cpg), damico_mri=values(damico_mri), damico=values(damico), t_stage=values(t_stage), PSA=values(PSA)
+                    
+HC_278 
+                    INSERT INTO Risk (Donor_ID,total_gleason_less_predominantly,total_gleason_predominantly,date_of_initial_urine_collection,cpg,damico_mri,damico,t_stage,PSA) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE Donor_ID=values(Donor_ID), total_gleason_less_predominantly=values(total_gleason_less_predominantly), total_gleason_predominantly=values(total_gleason_predominantly), date_of_initial_urine_collection=values(date_of_initial_urine_collection), cpg=values(cpg), damico_mri=values(damico_mri), damico=values(damico), t_stage=values(t_stage), PSA=values(PSA)
+                    
+<pymysql.connections.Connection object at 0x127a68700>
+HC002 
+                    INSERT INTO Risk (Donor_ID,cpg,PSA,damico_mri,date_of_initial_urine_collection,t_stage,damico,total_gleason_less_predominantly,total_gleason_predominantly) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE Donor_ID=values(Donor_ID), cpg=values(cpg), PSA=values(PSA), damico_mri=values(damico_mri), date_of_initial_urine_collection=values(date_of_initial_urine_collection), t_stage=values(t_stage), damico=values(damico), total_gleason_less_predominantly=values(total_gleason_less_predominantly), total_gleason_predominantly=values(total_gleason_predominantly)
+                    
+<pymysql.connections.Connection object at 0x120867550>
+HC002 
+                    INSERT INTO Risk (Donor_ID,cpg,total_gleason_predominantly,date_of_initial_urine_collection,total_gleason_less_predominantly,damico_mri,t_stage,damico,PSA) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE Donor_ID=values(Donor_ID), cpg=values(cpg), total_gleason_predominantly=values(total_gleason_predominantly), date_of_initial_urine_collection=values(date_of_initial_urine_collection), total_gleason_less_predominantly=values(total_gleason_less_predominantly), damico_mri=values(damico_mri), t_stage=values(t_stage), damico=values(damico), PSA=values(PSA)
+                    
+<pymysql.connections.Connection object at 0x122d2f700>
+HC002 
+                    INSERT INTO Risk (Donor_ID,t_stage,damico,damico_mri,cpg,total_gleason_predominantly,date_of_initial_urine_collection,PSA,total_gleason_less_predominantly) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE Donor_ID=values(Donor_ID), t_stage=values(t_stage), damico=values(damico), damico_mri=values(damico_mri), cpg=values(cpg), total_gleason_predominantly=values(total_gleason_predominantly), date_of_initial_urine_collection=values(date_of_initial_urine_collection), PSA=values(PSA), total_gleason_less_predominantly=values(total_gleason_less_predominantly)
+                    
+HC003 
+                    INSERT INTO Risk (Donor_ID,t_stage,damico,damico_mri,cpg,total_gleason_predominantly,date_of_initial_urine_collection,PSA,total_gleason_less_predominantly) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE Donor_ID=values(Donor_ID), t_stage=values(t_stage), damico=values(damico), damico_mri=values(damico_mri), cpg=values(cpg), total_gleason_predominantly=values(total_gleason_predominantly), date_of_initial_urine_collection=values(date_of_initial_urine_collection), PSA=values(PSA), total_gleason_less_predominantly=values(total_gleason_less_predominantly)
+                    

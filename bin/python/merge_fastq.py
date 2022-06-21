@@ -44,8 +44,7 @@ for f in fq_unique:
     output_name = filelist[0] + "-" + filelist[1] + "-merged-" + filelist[2]
 
     # command for concatonating files in bash
-    cmd = "cat " + wildcard_fq + " > " + output_name
+    cmd = "zcat " + wildcard_fq + " > " + output_name
 
     print(cmd)
-    os.system(cmd)
-
+    #os.system(cmd)

@@ -47,7 +47,7 @@ process main_nf{
 	file fastq from main_ch.collect()
 	script:
 	"""
-	nextflow run nf-core/rnaseq -resume -profile singularity \
+	nextflow run nf-core/rnaseq -resume -profile singularity -r 1.4.2 \
 	-c RNAseq/expression/UEA.config \
 	--reads './*{1,2}.{fastq,fq}.gz' \
 	--genome GRCh37 \
